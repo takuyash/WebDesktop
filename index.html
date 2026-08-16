@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desktop Simulation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<div class="desktop">
+
+  <!-- DESKTOP ICONS（並び順・表示/非表示は app.js の WINDOW_CONFIG で管理し、JSでDIVを生成） -->
+  <div class="desktop-icons" id="desktopIcons"></div>
+
+  <!-- TASKBAR -->
+  <div class="taskbar">
+    <div class="start" onclick="toggleStart()">⊞</div>
+
+    <div class="task-apps" id="taskApps"></div>
+
+    <div class="lang" id="langBtn">EN</div>
+    <div class="taskbar-icon-btn" id="fullscreenBtn" data-i18n-title="fullscreenEnter">⛶</div>
+    <div class="clock" id="clock"></div>
+    <div class="calendar" id="calendar"></div>
+  </div>
+
+  <!-- START MENU（中身は app.js の WINDOW_CONFIG から生成） -->
+  <div class="start-menu" id="startMenu"></div>
+
+  <!-- CALCULATOR WINDOW -->
+  <div class="window window-resizable calculator-window" id="calcWindow" style="display:none;">
+
+    <div class="titlebar" id="calcDragBar">
+      <span data-i18n="calculator"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="calcWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="calcWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="calcWindow">×</button>
+      </div>
+    </div>
+
+    <div class="calculator-body">
+      <input type="text" class="calc-display" id="calcDisplay" readonly value="0">
+      <div class="calc-buttons">
+        <button class="calc-btn calc-btn-fn" onclick="calcClear()">C</button>
+        <button class="calc-btn calc-btn-fn" onclick="calcBackspace()">⌫</button>
+        <button class="calc-btn calc-btn-op" onclick="calcOperator('/')">÷</button>
+        <button class="calc-btn calc-btn-op" onclick="calcOperator('*')">×</button>
+        <button class="calc-btn" onclick="calcDigit('7')">7</button>
+        <button class="calc-btn" onclick="calcDigit('8')">8</button>
+        <button class="calc-btn" onclick="calcDigit('9')">9</button>
+        <button class="calc-btn calc-btn-op" onclick="calcOperator('-')">−</button>
+        <button class="calc-btn" onclick="calcDigit('4')">4</button>
+        <button class="calc-btn" onclick="calcDigit('5')">5</button>
+        <button class="calc-btn" onclick="calcDigit('6')">6</button>
+        <button class="calc-btn calc-btn-op" onclick="calcOperator('+')">+</button>
+        <button class="calc-btn" onclick="calcDigit('1')">1</button>
+        <button class="calc-btn" onclick="calcDigit('2')">2</button>
+        <button class="calc-btn" onclick="calcDigit('3')">3</button>
+        <button class="calc-btn calc-btn-eq" onclick="calcEquals()">=</button>
+        <button class="calc-btn calc-btn-zero" onclick="calcDigit('0')">0</button>
+        <button class="calc-btn" onclick="calcDecimal()">.</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- NOTEPAD WINDOW -->
+  <div class="window window-resizable notepad-window" id="notepadWindow" style="display:none;">
+
+    <div class="titlebar" id="notepadDragBar">
+      <span data-i18n="notepad"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="notepadWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="notepadWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="notepadWindow">×</button>
+      </div>
+    </div>
+
+    <div class="notepad-body">
+      <textarea
+        id="notepadText"
+        class="notepad-textarea"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+  </div>
+
+  <!-- PAINT WINDOW -->
+  <div class="window window-resizable paint-window" id="paintWindow" style="display:none;">
+
+    <div class="titlebar" id="paintDragBar">
+      <span data-i18n="paint"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="paintWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="paintWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="paintWindow">×</button>
+      </div>
+    </div>
+
+    <div class="paint-body">
+      <div class="paint-toolbar">
+        <button type="button" class="paint-tool active" id="paintBrushBtn" onclick="setPaintTool('brush')" data-i18n="paintBrush"></button>
+        <button type="button" class="paint-tool" id="paintEraserBtn" onclick="setPaintTool('eraser')" data-i18n="paintEraser"></button>
+        <label class="paint-color-label">
+          <input type="color" id="paintColor" value="#000000" onchange="setPaintColor(this.value)">
+        </label>
+        <label class="paint-size-label">
+          <span data-i18n="paintSize"></span>
+          <input type="range" id="paintSize" min="1" max="24" value="4" oninput="setPaintLineWidth(this.value)">
+        </label>
+        <button type="button" class="paint-clear-btn" onclick="clearPaintCanvas()" data-i18n="paintClear"></button>
+      </div>
+      <canvas id="paintCanvas" width="480" height="300"></canvas>
+    </div>
+
+  </div>
+
+  <!-- TERMINAL WINDOW -->
+  <div class="window window-resizable terminal-window" id="terminalWindow" style="display:none;">
+
+    <div class="titlebar" id="terminalDragBar">
+      <span data-i18n="terminal"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="terminalWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="terminalWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="terminalWindow">×</button>
+      </div>
+    </div>
+    <div class="terminal-body">
+      <div class="terminal-output" id="terminalOutput"></div>
+      <div class="terminal-input-line">
+        <span class="terminal-prompt">C:\></span>
+        <input
+          type="text"
+          id="terminalInput"
+          class="terminal-input"
+          autocomplete="off"
+          spellcheck="false"
+        >
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BROWSER WINDOW -->
+  <div class="window window-resizable browser-window" id="browserWindow" style="display:none;">
+
+    <div class="titlebar" id="browserDragBar">
+      <span data-i18n="browser"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="browserWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="browserWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="browserWindow">×</button>
+      </div>
+    </div>
+
+    <div class="browser-body">
+      <div class="browser-toolbar">
+        <button type="button" class="browser-nav-btn" onclick="browserGoBack()">◀</button>
+        <button type="button" class="browser-nav-btn" onclick="browserGoForward()">▶</button>
+        <button type="button" class="browser-nav-btn" onclick="browserRefresh()">⟳</button>
+        <input type="text" id="browserAddress" class="browser-address" spellcheck="false">
+        <button type="button" class="browser-go-btn" onclick="browserNavigateFromInput()" data-i18n="browserGo"></button>
+      </div>
+      <div class="browser-favorites" id="browserFavorites"></div>
+      <div class="browser-frame-wrap">
+        <iframe id="browserFrame" class="browser-frame" src="about:blank"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHOTO WINDOW -->
+  <div class="window window-resizable photo-window" id="photoWindow" style="display:none;">
+
+    <div class="titlebar" id="photoDragBar">
+      <span data-i18n="photo"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="photoWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="photoWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="photoWindow">×</button>
+      </div>
+    </div>
+
+    <div class="photo-body">
+      <div class="photo-thumbs" id="photoThumbs"></div>
+
+      <div class="photo-viewer">
+        <div class="photo-viewer-main">
+          <button type="button" class="photo-nav-btn" onclick="photoPrev()">◀</button>
+          <img id="photoMainImage" class="photo-main-image" src="" alt="">
+          <button type="button" class="photo-nav-btn" onclick="photoNext()">▶</button>
+        </div>
+        <div class="photo-caption" id="photoCaption"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COUNTER WINDOW -->
+  <div class="window window-resizable counter-window" id="counterWindow" style="display:none;">
+
+    <div class="titlebar" id="counterDragBar">
+      <span data-i18n="counter"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="counterWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="counterWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="counterWindow">×</button>
+      </div>
+    </div>
+
+    <div class="counter-body">
+      <textarea
+        id="counterText"
+        class="counter-textarea"
+        placeholder="ここに文章を入力してください"
+        spellcheck="false"
+      ></textarea>
+
+      <div class="counter-result">
+        <div class="counter-card">
+          <div data-i18n="countAllLabel">文字数（改行含む）</div>
+          <div class="counter-value" id="countAll">0</div>
+        </div>
+        <div class="counter-card">
+          <div data-i18n="countNoNewlineLabel">文字数（改行除く）</div>
+          <div class="counter-value" id="countNoNewline">0</div>
+        </div>
+        <div class="counter-card">
+          <div data-i18n="countNoSpaceLabel">文字数（空白除く）</div>
+          <div class="counter-value" id="countNoSpace">0</div>
+        </div>
+        <div class="counter-card">
+          <div data-i18n="lineCountLabel">行数</div>
+          <div class="counter-value" id="lineCount">1</div>
+        </div>
+      </div>
+
+      <button type="button" class="counter-clear-btn" onclick="clearCounterText()" data-i18n="clear">クリア</button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ICO CONVERTER WINDOW -->
+  <div class="window window-resizable ico-converter-window" id="icoConverterWindow" style="display:none;">
+
+    <div class="titlebar" id="icoConverterDragBar">
+      <span data-i18n="icoConverter"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="icoConverterWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="icoConverterWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="icoConverterWindow">×</button>
+      </div>
+    </div>
+
+    <div class="ico-converter-body">
+      <div class="ico-app">
+        <div class="ico-card">
+          <div class="section">
+            <p class="section-label" data-i18n="icoInputLabel">入力</p>
+            <div class="dropzone" id="icoDropzone">
+              <div class="icon">📁</div>
+              <div class="dz-main" data-i18n="icoDropMain">画像をドラッグ＆ドロップ</div>
+              <div class="dz-or" data-i18n="icoDropOr">または</div>
+              <button type="button" class="btn" id="icoSelectBtn" data-i18n="icoSelectBtn">ファイルを選択</button>
+            </div>
+            <input type="file" id="icoFileInput" accept=".png,.jpg,.jpeg,.webp,.bmp,.gif,.svg,image/*" style="display:none;">
+            <div class="accepted-types" data-i18n="icoAcceptedTypes">対応形式: PNG / JPG / JPEG / WebP / BMP / GIF / SVG</div>
+          </div>
+
+          <div class="section">
+            <p class="section-label" data-i18n="icoPreviewLabel">プレビュー</p>
+            <div id="icoPreviewArea">
+              <span class="empty-preview" data-i18n="icoEmptyPreview">画像が選択されていません</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <p class="section-label"><span data-i18n="icoSizeLabel">作成サイズ</span> <span style="font-size:10px;color:var(--text-dim);font-weight:normal;" data-i18n="icoSizeSub">（サイズごとに個別のICOを出力）</span></p>
+            <div class="size-grid" id="icoSizeGrid"></div>
+            <div class="select-row">
+              <button type="button" class="btn" id="icoSelectAll" data-i18n="icoSelectAll">すべて選択</button>
+              <button type="button" class="btn" id="icoDeselectAll" data-i18n="icoDeselectAll">すべて解除</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <button type="button" class="create-btn" id="icoCreateBtn" disabled data-i18n="icoCreateBtn">選択サイズのICOを作成</button>
+            <div class="status" id="icoStatus"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- QR CODE WINDOW -->
+  <div class="window window-resizable qr-window" id="qrWindow" style="display:none;">
+
+    <div class="titlebar" id="qrDragBar">
+      <span data-i18n="qrCode"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="qrWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="qrWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="qrWindow">×</button>
+      </div>
+    </div>
+
+    <div class="qr-body">
+
+      <textarea
+        id="qrText"
+        class="qr-textarea"
+        data-i18n-placeholder="qrTextPlaceholder"
+        spellcheck="false"
+      ></textarea>
+
+      <div class="qr-options">
+        <label class="qr-option-label">
+          <span data-i18n="qrErrorLevelLabel"></span>
+          <select id="qrErrorLevel">
+            <option value="L">L (7%)</option>
+            <option value="M" selected>M (15%)</option>
+            <option value="Q">Q (25%)</option>
+            <option value="H">H (30%)</option>
+          </select>
+        </label>
+        <label class="qr-option-label">
+          <span data-i18n="qrCellSizeLabel"></span>
+          <input type="range" id="qrCellSize" min="3" max="12" value="6">
+        </label>
+      </div>
+
+      <div class="qr-preview" id="qrPreview">
+        <canvas id="qrCanvas"></canvas>
+        <div class="qr-empty" id="qrEmpty" data-i18n="qrEmptyText"></div>
+      </div>
+
+      <div class="qr-actions">
+        <button type="button" class="qr-download-btn" id="qrDownloadBtn" disabled data-i18n="qrDownloadBtn"></button>
+        <button type="button" class="qr-clear-btn" onclick="clearQrCode()" data-i18n="clear"></button>
+      </div>
+
+      <div class="qr-status" id="qrStatus"></div>
+
+    </div>
+
+  </div>
+
+  <!-- ZENKAKU/HANKAKU WINDOW -->
+  <div class="window window-resizable zenkaku-window" id="zenkakuWindow" style="display:none;">
+
+    <div class="titlebar" id="zenkakuDragBar">
+      <span data-i18n="zenkaku"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="zenkakuWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="zenkakuWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="zenkakuWindow">×</button>
+      </div>
+    </div>
+
+    <div class="zenkaku-body">
+
+      <div class="zenkaku-options" id="zenkakuOptions">
+        <label class="zenkaku-option-label">
+          <input type="checkbox" id="zenkakuOptAlnum" checked>
+          <span data-i18n="zenkakuOptAlnum"></span>
+        </label>
+        <label class="zenkaku-option-label">
+          <input type="checkbox" id="zenkakuOptKana" checked>
+          <span data-i18n="zenkakuOptKana"></span>
+        </label>
+        <label class="zenkaku-option-label">
+          <input type="checkbox" id="zenkakuOptSpace">
+          <span data-i18n="zenkakuOptSpace"></span>
+        </label>
+      </div>
+
+      <div class="zenkaku-columns">
+        <div class="zenkaku-column">
+          <p class="zenkaku-col-label" data-i18n="zenkakuInputLabel"></p>
+          <textarea
+            id="zenkakuInput"
+            class="zenkaku-textarea"
+            placeholder="変換したい文字列を入力してください"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <div class="zenkaku-buttons">
+          <button type="button" class="zenkaku-conv-btn" id="zenkakuToFull" data-i18n="zenkakuToFullBtn"></button>
+          <button type="button" class="zenkaku-conv-btn" id="zenkakuToHalf" data-i18n="zenkakuToHalfBtn"></button>
+          <button type="button" class="zenkaku-swap-btn" id="zenkakuSwap" title="入力と出力を入れ替え">⇄</button>
+        </div>
+
+        <div class="zenkaku-column">
+          <p class="zenkaku-col-label" data-i18n="zenkakuOutputLabel"></p>
+          <textarea
+            id="zenkakuOutput"
+            class="zenkaku-textarea"
+            readonly
+            spellcheck="false"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="zenkaku-actions">
+        <button type="button" class="zenkaku-copy-btn" id="zenkakuCopyBtn" data-i18n="zenkakuCopyBtn"></button>
+        <button type="button" class="zenkaku-clear-btn" id="zenkakuClearBtn" data-i18n="clear"></button>
+        <span class="zenkaku-status" id="zenkakuStatus"></span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- HEPBURN ROMANIZATION WINDOW -->
+  <div class="window window-resizable hepburn-window" id="hepburnWindow" style="display:none;">
+
+    <div class="titlebar" id="hepburnDragBar">
+      <span data-i18n="hepburn"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="hepburnWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="hepburnWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="hepburnWindow">×</button>
+      </div>
+    </div>
+
+    <div class="hepburn-body">
+
+      <p class="hepburn-col-label" data-i18n="hepburnInputLabel"></p>
+      <textarea
+        id="hepburnInput"
+        class="hepburn-textarea"
+        data-i18n-placeholder="hepburnInputPlaceholder"
+        spellcheck="false"
+      ></textarea>
+
+      <div class="hepburn-options">
+        <label class="hepburn-option-label">
+          <input type="checkbox" id="hepburnMacron" checked>
+          <span data-i18n="hepburnMacronLabel"></span>
+        </label>
+        <label class="hepburn-option-label">
+          <input type="checkbox" id="hepburnUppercase">
+          <span data-i18n="hepburnUppercaseLabel"></span>
+        </label>
+      </div>
+
+      <div class="hepburn-actions">
+        <button type="button" class="hepburn-convert-btn" id="hepburnConvertBtn" data-i18n="hepburnConvertBtn"></button>
+        <button type="button" class="hepburn-copy-btn" id="hepburnCopyBtn" data-i18n="hepburnCopyBtn"></button>
+        <button type="button" class="hepburn-clear-btn" id="hepburnClearBtn" data-i18n="clear"></button>
+        <span class="hepburn-status" id="hepburnStatus"></span>
+      </div>
+
+      <p class="hepburn-col-label" data-i18n="hepburnOutputLabel"></p>
+      <div id="hepburnOutput" class="hepburn-result"></div>
+
+      <p class="hepburn-note" data-i18n="hepburnNote"></p>
+
+    </div>
+
+  </div>
+
+  <!-- BARCODE WINDOW -->
+  <div class="window window-resizable barcode-window" id="barcodeWindow" style="display:none;">
+
+    <div class="titlebar" id="barcodeDragBar">
+      <span data-i18n="barcode"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="barcodeWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="barcodeWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="barcodeWindow">×</button>
+      </div>
+    </div>
+
+    <div class="barcode-body">
+
+      <label class="barcode-option-label barcode-type-label">
+        <span data-i18n="barcodeTypeLabel"></span>
+        <select id="barcodeType">
+          <option value="code128">CODE128</option>
+          <option value="code39">CODE39</option>
+          <option value="ean13">EAN-13</option>
+          <option value="ean8">EAN-8</option>
+          <option value="upca">UPC-A</option>
+          <option value="itf">ITF (Interleaved 2 of 5)</option>
+          <option value="codabar">Codabar (NW-7)</option>
+        </select>
+      </label>
+
+      <input
+        type="text"
+        id="barcodeText"
+        class="barcode-input"
+        data-i18n-placeholder="barcodeTextPlaceholder"
+        spellcheck="false"
+      >
+
+      <p class="barcode-type-hint" id="barcodeTypeHint"></p>
+
+      <div class="barcode-options">
+        <label class="barcode-option-label">
+          <span data-i18n="barcodeBarWidthLabel"></span>
+          <input type="range" id="barcodeBarWidth" min="1" max="4" value="2">
+        </label>
+        <label class="barcode-option-label">
+          <span data-i18n="barcodeBarHeightLabel"></span>
+          <input type="range" id="barcodeBarHeight" min="40" max="150" value="80">
+        </label>
+        <label class="barcode-option-label barcode-checkbox-label">
+          <input type="checkbox" id="barcodeShowText" checked>
+          <span data-i18n="barcodeShowTextLabel"></span>
+        </label>
+      </div>
+
+      <div class="barcode-preview" id="barcodePreview">
+        <canvas id="barcodeCanvas"></canvas>
+        <div class="barcode-empty" id="barcodeEmpty" data-i18n="barcodeEmptyText"></div>
+      </div>
+
+      <div class="barcode-actions">
+        <button type="button" class="barcode-download-btn" id="barcodeDownloadBtn" disabled data-i18n="barcodeDownloadBtn"></button>
+        <button type="button" class="barcode-clear-btn" onclick="clearBarcode()" data-i18n="clear"></button>
+      </div>
+
+      <div class="barcode-status" id="barcodeStatus"></div>
+
+    </div>
+
+  </div>
+
+  <!-- STOPWATCH WINDOW -->
+  <div class="window window-resizable stopwatch-window" id="stopwatchWindow" style="display:none;">
+
+    <div class="titlebar" id="stopwatchDragBar">
+      <span data-i18n="stopwatch"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="stopwatchWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="stopwatchWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="stopwatchWindow">×</button>
+      </div>
+    </div>
+
+    <div class="stopwatch-body">
+
+      <div class="stopwatch-display" id="stopwatchDisplay">00:00:00.00</div>
+
+      <div class="stopwatch-controls">
+        <button type="button" class="stopwatch-btn stopwatch-btn-lap" id="stopwatchLapBtn" disabled data-i18n="stopwatchLap"></button>
+        <button type="button" class="stopwatch-btn stopwatch-btn-start" id="stopwatchStartBtn"></button>
+        <button type="button" class="stopwatch-btn stopwatch-btn-reset" id="stopwatchResetBtn" disabled data-i18n="stopwatchReset"></button>
+      </div>
+
+      <div class="stopwatch-laps" id="stopwatchLaps">
+        <div class="stopwatch-laps-empty" id="stopwatchLapsEmpty" data-i18n="stopwatchNoLaps"></div>
+        <div class="stopwatch-laps-list" id="stopwatchLapsList"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- TABLE DIFF WINDOW -->
+  <div class="window window-resizable table-diff-window" id="tableDiffWindow" style="display:none;">
+
+    <div class="titlebar" id="tableDiffDragBar">
+      <span data-i18n="tableDiff"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="tableDiffWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="tableDiffWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="tableDiffWindow">×</button>
+      </div>
+    </div>
+
+    <div class="table-diff-body">
+      <iframe
+        id="tableDiffFrame"
+        class="table-diff-frame"
+        src="table-diff.html"
+        title="Table Diff"
+      ></iframe>
+    </div>
+
+  </div>
+
+  <!-- SETTINGS WINDOW -->
+  <div class="window window-resizable settings-window" id="settingsWindow" style="display:none;">
+
+    <div class="titlebar" id="settingsDragBar">
+      <span data-i18n="settings"></span>
+      <div class="controls">
+        <button type="button" class="win-btn win-minimize" data-window="settingsWindow">─</button>
+        <button type="button" class="win-btn win-maximize" data-window="settingsWindow">□</button>
+        <button type="button" class="win-btn win-close" data-window="settingsWindow">×</button>
+      </div>
+    </div>
+
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <h3 data-i18n="settingsBgTitle"></h3>
+        <p class="settings-desc" data-i18n="settingsBgDesc"></p>
+        <div class="settings-bg-grid" id="settingsBgGrid"></div>
+      </div>
+
+      <div class="settings-section">
+        <h3 data-i18n="settingsLangTitle"></h3>
+        <div class="settings-lang-buttons">
+          <button type="button" class="settings-lang-btn" id="settingsLangJa" onclick="setLang('ja')">日本語</button>
+          <button type="button" class="settings-lang-btn" id="settingsLangEn" onclick="setLang('en')">English</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3 data-i18n="settingsDataTitle"></h3>
+        <p class="settings-desc" data-i18n="settingsDataDesc"></p>
+        <button type="button" class="settings-danger-btn" id="settingsClearDataBtn" data-i18n="settingsClearDataBtn"></button>
+        <span class="settings-status" id="settingsStatus"></span>
+      </div>
+
+    </div>
+
+  </div>
+
+<script src="qrcode-lib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

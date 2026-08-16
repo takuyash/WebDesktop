@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="title">テーブル差分比較ツール</title>
+<style>
+  :root{
+    --bg: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #f4f6f8;
+    --border: #dde2e8;
+    --text: #1c2530;
+    --text-dim: #6b7684;
+    --accent: #0f8a7e;
+    --accent-dim: #d3f0ec;
+    --diff: #d9480f;
+    --diff-bg: rgba(255,138,92,0.14);
+    --diff-bg-strong: rgba(255,138,92,0.30);
+    --onlyA: #1c6fd6;
+    --onlyA-bg: rgba(28,111,214,0.08);
+    --onlyB: #7c3fd4;
+    --onlyB-bg: rgba(124,63,212,0.08);
+    --mono: "JetBrains Mono","Consolas","SFMono-Regular",Menlo,monospace;
+    --sans: "Segoe UI",system-ui,-apple-system,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#f7f8fa;color:var(--text);font-family:var(--sans);}
+  body{padding:20px 24px 60px;}
+  .shadowed{box-shadow:0 1px 2px rgba(20,30,40,0.06), 0 1px 0 rgba(20,30,40,0.03);}
+  h1{font-size:17px;font-weight:600;letter-spacing:.02em;margin:0 0 4px;color:var(--text);}
+  h1 .tag{font-family:var(--mono);font-size:11px;color:var(--accent);background:var(--accent-dim);padding:2px 7px;border-radius:4px;margin-left:8px;vertical-align:middle;}
+  p.sub{margin:0 0 18px;color:var(--text-dim);font-size:12.5px;}
+
+  .inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  @media (max-width: 860px){ .inputs{grid-template-columns:1fr;} }
+  .col label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  .col label .dot{width:8px;height:8px;border-radius:50%;}
+  .colA .dot{background:var(--onlyA);}
+  .colB .dot{background:var(--onlyB);}
+  .col label .filename{font-weight:400;color:var(--text-dim);font-family:var(--mono);font-size:11px;margin-left:2px;}
+  .filebtn{
+    margin-left:auto;background:var(--panel-2);color:var(--text-dim);border:1px solid var(--border);
+    border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer;font-family:var(--sans);
+  }
+  .filebtn:hover{border-color:var(--accent);color:var(--accent);}
+  .dropzone{position:relative;}
+  .dropzone.dragover textarea{border-color:var(--accent);background:var(--accent-dim);}
+  textarea{box-shadow:0 1px 2px rgba(20,30,40,0.04);
+    width:100%;height:150px;resize:vertical;
+    background:var(--panel);color:var(--text);
+    border:1px solid var(--border);border-radius:8px;
+    font-family:var(--mono);font-size:12px;line-height:1.5;
+    padding:10px 12px;outline:none;
+  }
+  textarea:focus{border-color:var(--accent);}
+  textarea::placeholder{color:#a4acb6;}
+
+  .toolbar{box-shadow:0 1px 2px rgba(20,30,40,0.06);
+    display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    padding:10px 14px;margin-bottom:16px;
+  }
+  .field{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
+  select{
+    background:var(--panel-2);color:var(--text);border:1px solid var(--border);
+    border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:var(--sans);outline:none;
+  }
+  .seg{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+  .seg button{
+    background:var(--panel-2);color:var(--text-dim);border:none;padding:6px 12px;
+    font-size:12.5px;cursor:pointer;font-family:var(--sans);
+  }
+  .seg button.active{background:var(--accent-dim);color:var(--accent);}
+  .seg button:not(:last-child){border-right:1px solid var(--border);}
+
+  .btn{
+    background:var(--accent);color:#ffffff;border:none;border-radius:6px;
+    padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;
+    margin-left:auto;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn:active{filter:brightness(0.95);}
+
+  .formathint{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--text-dim);margin-bottom:14px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .legend i.diff{background:var(--diff-bg-strong);border:1px solid var(--diff);}
+  .legend i.onlyA{background:var(--onlyA-bg);border:1px solid var(--onlyA);}
+  .legend i.onlyB{background:var(--onlyB-bg);border:1px solid var(--onlyB);}
+
+  .summary{box-shadow:0 1px 2px rgba(20,30,40,0.06);
+    display:flex;gap:22px;flex-wrap:wrap;background:var(--panel);
+    border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin-bottom:18px;
+    font-family:var(--mono);font-size:12px;
+  }
+  .summary b{color:var(--text);font-size:15px;display:block;font-family:var(--sans);}
+  .summary .item{color:var(--text-dim);}
+  .summary .diff-num{color:var(--diff);}
+  .summary .onlyA-num{color:var(--onlyA);}
+  .summary .onlyB-num{color:var(--onlyB);}
+
+  .empty{color:var(--text-dim);font-size:13px;padding:40px 0;text-align:center;border:1px dashed var(--border);border-radius:8px;}
+
+  /* side-by-side view */
+  .sbs-wrap{display:flex;gap:14px;align-items:flex-start;}
+  .sbs-col{flex:1;min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 1px 2px rgba(20,30,40,0.06);}
+  .sbs-col h3{
+    margin:0;padding:8px 12px;font-size:12px;font-weight:700;letter-spacing:.03em;
+    background:var(--panel-2);border-bottom:1px solid var(--border);
+  }
+  .sbs-col.a h3{color:var(--onlyA);} .sbs-col.b h3{color:var(--onlyB);}
+  .tbl-scroll{overflow:auto;max-height:70vh;}
+  table.data{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:11.5px;white-space:nowrap;}
+  table.data th, table.data td{padding:5px 10px;border-bottom:1px solid var(--border);text-align:left;}
+  table.data thead th{
+    position:sticky;top:0;background:var(--panel-2);color:var(--text-dim);
+    font-family:var(--sans);font-size:11px;font-weight:600;z-index:1;
+  }
+  table.data td.key{color:var(--accent);font-weight:600;}
+  table.data td.diffcell{background:var(--diff-bg-strong);color:var(--diff);}
+  table.data tr.row-onlyA{background:var(--onlyA-bg);}
+  table.data tr.row-onlyB{background:var(--onlyB-bg);}
+  table.data tr.row-missing td{color:#a4acb6;font-style:italic;}
+
+  /* transposed view */
+  .rec{background:var(--panel);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 2px rgba(20,30,40,0.06);}
+  .rec > summary{
+    list-style:none;cursor:pointer;padding:9px 14px;display:flex;align-items:center;gap:10px;
+    background:var(--panel-2);font-size:12.5px;
+  }
+  .rec > summary::-webkit-details-marker{display:none;}
+  .rec > summary .chev{color:var(--text-dim);font-size:10px;transition:transform .12s;}
+  .rec[open] > summary .chev{transform:rotate(90deg);}
+  .rec .keylabel{font-family:var(--mono);color:var(--accent);font-weight:600;}
+  .badge{font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:700;letter-spacing:.02em;}
+  .badge.match{background:rgba(79,209,197,0.15);color:var(--accent);}
+  .badge.diff{background:var(--diff-bg-strong);color:var(--diff);}
+  .badge.onlyA{background:var(--onlyA-bg);color:var(--onlyA);}
+  .badge.onlyB{background:var(--onlyB-bg);color:var(--onlyB);}
+  .rec .cnt{margin-left:auto;color:var(--text-dim);font-family:var(--mono);font-size:11px;}
+  table.trans{border-collapse:collapse;width:100%;font-size:12px;}
+  table.trans th, table.trans td{padding:6px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}
+  table.trans th{width:150px;color:var(--text-dim);font-weight:600;font-size:11.5px;background:var(--panel-2);}
+  table.trans td{font-family:var(--mono);font-size:12px;word-break:break-all;}
+  table.trans td.va, table.trans td.vb{width:calc(50% - 75px);}
+  table.trans tr.diffrow td.va, table.trans tr.diffrow td.vb{background:var(--diff-bg);color:var(--diff);}
+  table.trans td.missing{color:#a4acb6;font-style:italic;}
+</style>
+</head>
+<body>
+
+  <h1><span data-i18n="title">テーブル差分比較ツール</span> <span class="tag">cell diff</span></h1>
+  <p class="sub" data-i18n="subtitle">同一構造の表データを2つ貼り付けて、セル単位の差分を色付け表示します。タブ区切り(Excel/クエリ結果)・CSV(カンマ区切り、ダブルクォート対応)に対応。</p>
+
+  <div class="inputs">
+    <div class="col colA">
+      <label>
+        <span class="dot"></span>データ A
+        <span class="filename" id="filenameA"></span>
+        <button type="button" class="filebtn" id="fileBtnA" data-i18n="selectFile">ファイルを選択…</button>
+        <input type="file" id="fileInputA" accept=".csv,.tsv,.txt" style="display:none">
+      </label>
+      <div class="dropzone" id="dropzoneA">
+        <textarea id="inputA" data-i18n-placeholder="inputPlaceholder" placeholder="ヘッダー行を含めて貼り付け（タブ区切り or CSV）、またはファイルをドラッグ＆ドロップ"></textarea>
+      </div>
+    </div>
+    <div class="col colB">
+      <label>
+        <span class="dot"></span>データ B
+        <span class="filename" id="filenameB"></span>
+        <button type="button" class="filebtn" id="fileBtnB" data-i18n="selectFile">ファイルを選択…</button>
+        <input type="file" id="fileInputB" accept=".csv,.tsv,.txt" style="display:none">
+      </label>
+      <div class="dropzone" id="dropzoneB">
+        <textarea id="inputB" data-i18n-placeholder="inputPlaceholder" placeholder="ヘッダー行を含めて貼り付け（タブ区切り or CSV）、またはファイルをドラッグ＆ドロップ"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="field">
+      <span data-i18n="format">形式</span>
+      <select id="formatSelect">
+        <option value="auto" data-i18n="formatAuto">自動判定</option>
+        <option value="tsv" data-i18n="formatTsv">タブ区切り</option>
+        <option value="csv" data-i18n="formatCsv">CSV（カンマ区切り）</option>
+      </select>
+      <span class="formathint" id="formatHint"></span>
+    </div>
+    <div class="field">
+      <span data-i18n="keyColumn">キー列</span>
+      <select id="keySelect"><option value="" data-i18n="rowOrder">行番号（貼り付け順）</option></select>
+    </div>
+    <div class="field">
+      <span data-i18n="view">表示</span>
+      <div class="seg" id="viewSeg">
+        <button data-view="sbs" class="active" data-i18n="sideBySide">横並び</button>
+        <button data-view="trans" data-i18n="transposed">縦横変換</button>
+      </div>
+    </div>
+    <button class="btn" id="compareBtn" data-i18n="compare">比較する</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="diff"></i><span data-i18n="legendDiff">値が異なるセル</span></span>
+    <span><i class="onlyA"></i><span data-i18n="legendOnlyA">Aのみに存在する行</span></span>
+    <span><i class="onlyB"></i><span data-i18n="legendOnlyB">Bのみに存在する行</span></span>
+  </div>
+
+  <div id="summary"></div>
+  <div id="result"><div class="empty" data-i18n="empty">データを貼り付けて「比較する」を押してください</div></div>
+
+<script>
+
+const TABLE_DIFF_I18N = {
+  ja: {
+    title: "テーブル差分比較ツール",
+    subtitle: "同一構造の表データを2つ貼り付けて、セル単位の差分を色付け表示します。タブ区切り(Excel/クエリ結果)・CSV(カンマ区切り、ダブルクォート対応)に対応。",
+    dataA: "データ A",
+    dataB: "データ B",
+    selectFile: "ファイルを選択…",
+    inputPlaceholder: "ヘッダー行を含めて貼り付け（タブ区切り or CSV）、またはファイルをドラッグ＆ドロップ",
+    format: "形式",
+    formatAuto: "自動判定",
+    formatTsv: "タブ区切り",
+    formatCsv: "CSV（カンマ区切り）",
+    keyColumn: "キー列",
+    rowOrder: "行番号（貼り付け順）",
+    view: "表示",
+    sideBySide: "横並び",
+    transposed: "縦横変換",
+    compare: "比較する",
+    legendDiff: "値が異なるセル",
+    legendOnlyA: "Aのみに存在する行",
+    legendOnlyB: "Bのみに存在する行",
+    empty: "データを貼り付けて「比較する」を押してください",
+    fileTooLarge: "ファイルサイズが大きすぎます（20MB以下にしてください）: ",
+    fileReadError: "ファイルの読み込みに失敗しました: ",
+    parseTsv: "タブ区切りとして解析",
+    parseCsv: "CSVとして解析",
+    parsePlain: "空白区切りとして解析",
+    bothDataRequired: "A・B両方にデータを貼り付けてください",
+    compareRows: "比較行数",
+    allMatch: "完全一致",
+    diffRows: "差分あり行",
+    diffCells: "差分セル数",
+    onlyA: "Aのみ",
+    onlyB: "Bのみ",
+    match: "一致",
+    diff: "差分あり",
+    statusOnlyA: "Aのみ",
+    statusOnlyB: "Bのみ",
+    missing: "（存在しません）",
+    cellDiffCount: "{n} 件のセル差分"
+  },
+  en: {
+    title: "Table Diff Tool",
+    subtitle: "Paste two tables with the same structure to highlight cell-level differences. Supports tab-separated data (Excel/query results) and CSV with quoted fields.",
+    dataA: "Data A",
+    dataB: "Data B",
+    selectFile: "Select File…",
+    inputPlaceholder: "Paste including the header row (tab-separated or CSV), or drag & drop a file",
+    format: "Format",
+    formatAuto: "Auto detect",
+    formatTsv: "Tab-separated",
+    formatCsv: "CSV (comma-separated)",
+    keyColumn: "Key column",
+    rowOrder: "Row number (paste order)",
+    view: "View",
+    sideBySide: "Side by side",
+    transposed: "Transposed",
+    compare: "Compare",
+    legendDiff: "Cells with different values",
+    legendOnlyA: "Rows only in A",
+    legendOnlyB: "Rows only in B",
+    empty: "Paste data and click “Compare”.",
+    fileTooLarge: "File is too large (20 MB or less): ",
+    fileReadError: "Failed to read file: ",
+    parseTsv: "Parsed as tab-separated",
+    parseCsv: "Parsed as CSV",
+    parsePlain: "Parsed as whitespace-separated",
+    bothDataRequired: "Please paste data into both A and B.",
+    compareRows: "Rows compared",
+    allMatch: "Exact matches",
+    diffRows: "Rows with differences",
+    diffCells: "Different cells",
+    onlyA: "A only",
+    onlyB: "B only",
+    match: "Match",
+    diff: "Different",
+    statusOnlyA: "A only",
+    statusOnlyB: "B only",
+    missing: "(Not present)",
+    cellDiffCount: "{n} cell difference(s)"
+  }
+};
+
+let tableDiffLang = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "ja";
+const t = key => TABLE_DIFF_I18N[tableDiffLang][key] ?? key;
+
+function applyTableDiffLanguage() {
+  document.documentElement.lang = tableDiffLang;
+  const d = TABLE_DIFF_I18N[tableDiffLang];
+
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.dataset.i18n;
+    if (d[key] !== undefined) el.textContent = d[key];
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    if (d[key] !== undefined) el.placeholder = d[key];
+  });
+
+  if (state.compare) {
+    renderSummary({
+      diffCells: state.compare.records.reduce((n, r) => n + r.diffFlags.filter(Boolean).length, 0),
+      onlyACount: state.compare.records.filter(r => r.status === "onlyA").length,
+      onlyBCount: state.compare.records.filter(r => r.status === "onlyB").length,
+      matchRows: state.compare.records.filter(r => r.status === "match").length,
+      diffRows: state.compare.records.filter(r => r.status === "diff").length,
+      total: state.compare.records.length
+    });
+    render();
+  }
+}
+
+window.addEventListener("message", event => {
+  if (!event.data || event.data.type !== "app-language") return;
+  if (event.data.lang !== "ja" && event.data.lang !== "en") return;
+  tableDiffLang = event.data.lang;
+  applyTableDiffLanguage();
+});
+
+
+(function(){
+  const $ = id => document.getElementById(id);
+  const inputA = $('inputA'), inputB = $('inputB');
+  const keySelect = $('keySelect');
+  const formatSelect = $('formatSelect');
+  const formatHint = $('formatHint');
+  const viewSeg = $('viewSeg');
+  const summaryEl = $('summary');
+  const resultEl = $('result');
+
+  let state = { a:null, b:null, headers:[], compare:null, view:'sbs' };
+
+  // ---- ファイル読み込み（選択 / ドラッグ&ドロップ） ----
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
+  function extToFormat(name){
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if(ext === 'csv') return 'csv';
+    if(ext === 'tsv') return 'tsv';
+    return null;
+  }
+
+  function loadFileInto(file, textarea, filenameEl){
+    if(!file) return;
+    if(file.size > MAX_FILE_SIZE){
+      alert(t('fileTooLarge') + file.name);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      textarea.value = reader.result;
+      filenameEl.textContent = file.name;
+      const fmt = extToFormat(file.name);
+      if(fmt) formatSelect.value = fmt;
+      state.headersSig = null;
+    };
+    reader.onerror = () => {
+      alert(t('fileReadError') + file.name);
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function setupFileInput(btnId, inputId, dropId, textarea, filenameEl){
+    const btn = $(btnId), fileInput = $(inputId), dropzone = $(dropId);
+    btn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      if(fileInput.files && fileInput.files[0]) loadFileInto(fileInput.files[0], textarea, filenameEl);
+      fileInput.value = '';
+    });
+    ['dragenter','dragover'].forEach(evt=>{
+      dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(evt=>{
+      dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
+    });
+    dropzone.addEventListener('drop', e=>{
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if(file) loadFileInto(file, textarea, filenameEl);
+    });
+  }
+
+  // ---- 区切り文字の自動判定 ----
+  function detectDelimiter(text){
+    const firstLine = text.split('\n')[0] || '';
+    if(firstLine.includes('\t')) return 'tsv';
+    if(firstLine.includes(',')) return 'csv';
+    return 'plain';
+  }
+
+  // ---- CSV/TSV パーサー（ダブルクォート囲み・""エスケープ・引用内の改行に対応） ----
+  function parseDelimited(text, delimiter){
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+    let i = 0;
+    const len = text.length;
+    while(i < len){
+      const c = text[i];
+      if(inQuotes){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += c; i++; continue;
+      } else {
+        if(c === '"' && field === ''){ inQuotes = true; i++; continue; }
+        if(c === delimiter){ row.push(field); field=''; i++; continue; }
+        if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+        if(c === '\r'){ i++; continue; }
+        field += c; i++; continue;
+      }
+    }
+    if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+    return rows.map(r => r.map(s => s.trim()));
+  }
+
+  function parsePlain(text){
+    return text.split('\n')
+      .filter(l => l.trim().length>0)
+      .map(l => l.split(/\s{2,}/).map(s=>s.trim()));
+  }
+
+  function parseTable(text){
+    const normalized = text.replace(/\r\n/g,'\n');
+    if(normalized.trim().length === 0) return {headers:[], rows:[], detected:null};
+
+    const mode = formatSelect.value === 'auto' ? detectDelimiter(normalized) : formatSelect.value;
+
+    let rows;
+    if(mode === 'tsv') rows = parseDelimited(normalized, '\t');
+    else if(mode === 'csv') rows = parseDelimited(normalized, ',');
+    else rows = parsePlain(normalized);
+
+    rows = rows.filter(r => r.some(c => c.trim().length>0));
+    if(rows.length === 0) return {headers:[], rows:[], detected:mode};
+
+    const rawHeaders = rows[0].map(s=>s.trim());
+    const dataRows = rows.slice(1).map(cells=>{
+      while(cells.length < rawHeaders.length) cells.push('');
+      return cells;
+    });
+    return {headers: rawHeaders, rows: dataRows, detected: mode};
+  }
+
+  function labelFor(mode){
+    if(mode==='tsv') return t('parseTsv');
+    if(mode==='csv') return t('parseCsv');
+    if(mode==='plain') return t('parsePlain');
+    return '';
+  }
+
+  function unionHeaders(hA, hB){
+    const combined = [...hA];
+    hB.forEach(h=>{ if(!combined.includes(h)) combined.push(h); });
+    return combined;
+  }
+
+  function buildKeyOptions(headers){
+    const prevValue = keySelect.value;
+    keySelect.innerHTML = '<option value="" data-i18n="rowOrder">行番号（貼り付け順）</option>';
+    headers.forEach(h=>{
+      const opt = document.createElement('option');
+      opt.value = h; opt.textContent = h;
+      keySelect.appendChild(opt);
+    });
+    if(state.userSetKey){
+      // ユーザーが一度でも手動で選んだ値は常に維持する（値が消えた場合のみ行番号に戻す）
+      keySelect.value = headers.includes(prevValue) ? prevValue : '';
+    } else {
+      const idCol = headers.find(h => h.toLowerCase() === 'id');
+      if(idCol) keySelect.value = idCol;
+    }
+  }
+
+  function runCompare(){
+    const a = parseTable(inputA.value);
+    const b = parseTable(inputB.value);
+    if(a.headers.length===0 || b.headers.length===0){
+      resultEl.innerHTML = '<div class="empty">' + esc(t('bothDataRequired')) + '</div>';
+      summaryEl.innerHTML = '';
+      formatHint.textContent = '';
+      return;
+    }
+    const hints = [a.detected, b.detected].filter(Boolean);
+    formatHint.textContent = hints.length ? `(${labelFor(hints[0])})` : '';
+
+    const headers = unionHeaders(a.headers, b.headers);
+    const sig = headers.join('|');
+    if(state.headersSig !== sig){
+      buildKeyOptions(headers);
+      state.headersSig = sig;
+    }
+    state.a = a; state.b = b; state.headers = headers;
+    compareNow();
+  }
+
+  function compareNow(){
+    const {a,b,headers} = state;
+    if(!a) return;
+    const idxA = headers.map(h => a.headers.indexOf(h));
+    const idxB = headers.map(h => b.headers.indexOf(h));
+    const keyField = keySelect.value;
+    const keyIdx = keyField ? headers.indexOf(keyField) : -1;
+
+    function keyOf(row, idxArr, rowNum){
+      if(keyIdx === -1) return '__row'+rowNum;
+      const srcIdx = idxArr[keyIdx];
+      return srcIdx === -1 ? '__row'+rowNum : row[srcIdx];
+    }
+
+    const mapA = new Map(), orderA = [];
+    a.rows.forEach((row,i)=>{ const k = keyOf(row, idxA, i); if(!mapA.has(k)){ mapA.set(k,row); orderA.push(k);} });
+    const mapB = new Map(), orderB = [];
+    b.rows.forEach((row,i)=>{ const k = keyOf(row, idxB, i); if(!mapB.has(k)){ mapB.set(k,row); orderB.push(k);} });
+
+    const seen = new Set();
+    const keys = [];
+    orderA.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
+    orderB.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
+
+    let diffCells=0, onlyACount=0, onlyBCount=0, matchRows=0, diffRows=0;
+    const records = keys.map(k=>{
+      const rowA = mapA.get(k), rowB = mapB.get(k);
+      let status, diffFlags = headers.map(()=>false);
+      if(rowA && rowB){
+        let rowHasDiff=false;
+        headers.forEach((h,ci)=>{
+          const va = idxA[ci]===-1 ? undefined : (rowA[idxA[ci]] ?? '');
+          const vb = idxB[ci]===-1 ? undefined : (rowB[idxB[ci]] ?? '');
+          if(va !== vb){ diffFlags[ci]=true; diffCells++; rowHasDiff=true; }
+        });
+        status = rowHasDiff ? 'diff' : 'match';
+        rowHasDiff ? diffRows++ : matchRows++;
+      } else if(rowA){ status='onlyA'; onlyACount++; }
+      else { status='onlyB'; onlyBCount++; }
+      return { key:k, rowA, rowB, status, diffFlags };
+    });
+
+    state.compare = { headers, idxA, idxB, records, keyIdx, keyField };
+    renderSummary({diffCells, onlyACount, onlyBCount, matchRows, diffRows, total:keys.length});
+    render();
+  }
+
+  function renderSummary(s){
+    summaryEl.innerHTML = `
+      <div class="summary">
+        <div class="item"><b>${s.total}</b>${t("compareRows")}</div>
+        <div class="item"><b>${s.matchRows}</b>${t("allMatch")}</div>
+        <div class="item"><b class="diff-num">${s.diffRows}</b>${t("diffRows")}</div>
+        <div class="item"><b class="diff-num">${s.diffCells}</b>${t("diffCells")}</div>
+        <div class="item"><b class="onlyA-num">${s.onlyACount}</b>${t("onlyA")}</div>
+        <div class="item"><b class="onlyB-num">${s.onlyBCount}</b>${t("onlyB")}</div>
+      </div>`;
+  }
+
+  function esc(s){
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function render(){
+    if(!state.compare) return;
+    resultEl.innerHTML = state.view === 'sbs' ? renderSideBySide() : renderTransposed();
+  }
+
+  function renderSideBySide(){
+    const {headers, records} = state.compare;
+    const theadHtml = `<tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>`;
+
+    function buildRows(which){
+      return records.map(r=>{
+        const row = which==='a' ? r.rowA : r.rowB;
+        const idxArr = which==='a' ? state.compare.idxA : state.compare.idxB;
+        const missing = (which==='a' && r.status==='onlyB') || (which==='b' && r.status==='onlyA');
+        let rowClass = '';
+        if(r.status==='onlyA') rowClass = which==='a' ? 'row-onlyA' : 'row-missing';
+        if(r.status==='onlyB') rowClass = which==='b' ? 'row-onlyB' : 'row-missing';
+        if(missing){
+          return `<tr class="${rowClass}">${headers.map((h,ci)=> ci===state.compare.keyIdx ? `<td class="key">—</td>` : `<td>—</td>`).join('')}</tr>`;
+        }
+        return `<tr class="${rowClass}">${headers.map((h,ci)=>{
+          const srcIdx = idxArr[ci];
+          const val = srcIdx===-1 ? '' : (row[srcIdx] ?? '');
+          const isDiff = r.status==='diff' && r.diffFlags[ci];
+          const cls = [ci===state.compare.keyIdx ? 'key':'', isDiff ? 'diffcell':''].filter(Boolean).join(' ');
+          return `<td class="${cls}">${esc(val)}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+    }
+
+    return `
+      <div class="sbs-wrap">
+        <div class="sbs-col a">
+          <h3>${t("dataA")}</h3>
+          <div class="tbl-scroll"><table class="data"><thead>${theadHtml}</thead><tbody>${buildRows('a')}</tbody></table></div>
+        </div>
+        <div class="sbs-col b">
+          <h3>${t("dataB")}</h3>
+          <div class="tbl-scroll"><table class="data"><thead>${theadHtml}</thead><tbody>${buildRows('b')}</tbody></table></div>
+        </div>
+      </div>`;
+  }
+
+  function renderTransposed(){
+    const {headers, records, idxA, idxB, keyField} = state.compare;
+    const badgeMap = { match:[t('match'),'match'], diff:[t('diff'),'diff'], onlyA:[t('statusOnlyA'),'onlyA'], onlyB:[t('statusOnlyB'),'onlyB'] };
+
+    return records.map((r,ri)=>{
+      const [label, cls] = badgeMap[r.status];
+      const keyDisplay = keyField ? `${esc(keyField)} = ${esc(r.key)}` : `#${ri+1}`;
+      const diffCount = r.diffFlags.filter(Boolean).length;
+      const rows = headers.map((h,ci)=>{
+        const va = r.rowA ? (idxA[ci]===-1 ? undefined : (r.rowA[idxA[ci]] ?? '')) : undefined;
+        const vb = r.rowB ? (idxB[ci]===-1 ? undefined : (r.rowB[idxB[ci]] ?? '')) : undefined;
+        const rowIsDiff = r.status==='diff' && r.diffFlags[ci];
+        const vaHtml = va===undefined ? '<span class="missing">' + esc(t('missing')) + '</span>' : esc(va);
+        const vbHtml = vb===undefined ? '<span class="missing">' + esc(t('missing')) + '</span>' : esc(vb);
+        return `<tr class="${rowIsDiff?'diffrow':''}"><th>${esc(h)}</th><td class="va">${vaHtml}</td><td class="vb">${vbHtml}</td></tr>`;
+      }).join('');
+      const openAttr = (r.status !== 'match') ? 'open' : '';
+      return `
+        <details class="rec" ${openAttr}>
+          <summary>
+            <span class="chev">▶</span>
+            <span class="keylabel">${keyDisplay}</span>
+            <span class="badge ${cls}">${label}</span>
+            <span class="cnt">${r.status==='diff' ? t('cellDiffCount').replace('{n}', diffCount) : ''}</span>
+          </summary>
+          <table class="trans">
+            <tr><th></th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyA)">${t("dataA")}</th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyB)">${t("dataB")}</th></tr>
+            ${rows}
+          </table>
+        </details>`;
+    }).join('');
+  }
+
+  viewSeg.addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    [...viewSeg.children].forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.view = btn.dataset.view;
+    render();
+  });
+
+  keySelect.addEventListener('change', ()=>{ state.userSetKey = true; if(state.a) compareNow(); });
+  formatSelect.addEventListener('change', ()=>{ state.headersSig = null; });
+  $('compareBtn').addEventListener('click', runCompare);
+
+  const filenameA = $('filenameA'), filenameB = $('filenameB');
+  setupFileInput('fileBtnA', 'fileInputA', 'dropzoneA', inputA, filenameA);
+  setupFileInput('fileBtnB', 'fileInputB', 'dropzoneB', inputB, filenameB);
+  inputA.addEventListener('input', ()=>{ filenameA.textContent=''; });
+  inputB.addEventListener('input', ()=>{ filenameB.textContent=''; });
+  applyTableDiffLanguage();
+})();
+</script>
+</body>
+</html>
