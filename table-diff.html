@@ -74,6 +74,9 @@
   .seg button.active{background:var(--accent-dim);color:var(--accent);}
   .seg button:not(:last-child){border-right:1px solid var(--border);}
 
+  .toggle-field label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;}
+  .toggle-field input[type="checkbox"]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;}
+
   .btn{
     background:var(--accent);color:#ffffff;border:none;border-radius:6px;
     padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;
@@ -201,6 +204,12 @@
         <button data-view="trans" data-i18n="transposed">縦横変換</button>
       </div>
     </div>
+    <div class="field toggle-field">
+      <label id="diffOnlyLabel">
+        <input type="checkbox" id="diffOnlyToggle">
+        <span data-i18n="diffOnly">差分列のみ表示</span>
+      </label>
+    </div>
     <button class="btn" id="compareBtn" data-i18n="compare">比較する</button>
   </div>
 
@@ -232,6 +241,7 @@ const TABLE_DIFF_I18N = {
     view: "表示",
     sideBySide: "横並び",
     transposed: "縦横変換",
+    diffOnly: "差分列のみ表示",
     compare: "比較する",
     legendDiff: "値が異なるセル",
     legendOnlyA: "Aのみに存在する行",
@@ -254,7 +264,8 @@ const TABLE_DIFF_I18N = {
     statusOnlyA: "Aのみ",
     statusOnlyB: "Bのみ",
     missing: "（存在しません）",
-    cellDiffCount: "{n} 件のセル差分"
+    cellDiffCount: "{n} 件のセル差分",
+    noDiffCols: "差分のある列はありません"
   },
   en: {
     title: "Table Diff Tool",
@@ -272,6 +283,7 @@ const TABLE_DIFF_I18N = {
     view: "View",
     sideBySide: "Side by side",
     transposed: "Transposed",
+    diffOnly: "Diff columns only",
     compare: "Compare",
     legendDiff: "Cells with different values",
     legendOnlyA: "Rows only in A",
@@ -294,7 +306,8 @@ const TABLE_DIFF_I18N = {
     statusOnlyA: "A only",
     statusOnlyB: "B only",
     missing: "(Not present)",
-    cellDiffCount: "{n} cell difference(s)"
+    cellDiffCount: "{n} cell difference(s)",
+    noDiffCols: "No differing columns"
   }
 };
 
@@ -343,10 +356,11 @@ window.addEventListener("message", event => {
   const formatSelect = $('formatSelect');
   const formatHint = $('formatHint');
   const viewSeg = $('viewSeg');
+  const diffOnlyToggle = $('diffOnlyToggle');
   const summaryEl = $('summary');
   const resultEl = $('result');
 
-  let state = { a:null, b:null, headers:[], compare:null, view:'sbs' };
+  let state = { a:null, b:null, headers:[], compare:null, view:'sbs', diffOnly:false };
 
   // ---- ファイル読み込み（選択 / ドラッグ&ドロップ） ----
   const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -538,6 +552,7 @@ window.addEventListener("message", event => {
     orderB.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
 
     let diffCells=0, onlyACount=0, onlyBCount=0, matchRows=0, diffRows=0;
+    const diffColSet = new Set();
     const records = keys.map(k=>{
       const rowA = mapA.get(k), rowB = mapB.get(k);
       let status, diffFlags = headers.map(()=>false);
@@ -546,7 +561,7 @@ window.addEventListener("message", event => {
         headers.forEach((h,ci)=>{
           const va = idxA[ci]===-1 ? undefined : (rowA[idxA[ci]] ?? '');
           const vb = idxB[ci]===-1 ? undefined : (rowB[idxB[ci]] ?? '');
-          if(va !== vb){ diffFlags[ci]=true; diffCells++; rowHasDiff=true; }
+          if(va !== vb){ diffFlags[ci]=true; diffCells++; rowHasDiff=true; diffColSet.add(ci); }
         });
         status = rowHasDiff ? 'diff' : 'match';
         rowHasDiff ? diffRows++ : matchRows++;
@@ -555,7 +570,7 @@ window.addEventListener("message", event => {
       return { key:k, rowA, rowB, status, diffFlags };
     });
 
-    state.compare = { headers, idxA, idxB, records, keyIdx, keyField };
+    state.compare = { headers, idxA, idxB, records, keyIdx, keyField, diffColSet };
     renderSummary({diffCells, onlyACount, onlyBCount, matchRows, diffRows, total:keys.length});
     render();
   }
@@ -576,14 +591,29 @@ window.addEventListener("message", event => {
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  function render(){
-    if(!state.compare) return;
-    resultEl.innerHTML = state.view === 'sbs' ? renderSideBySide() : renderTransposed();
+  function getVisibleColumnIndices(){
+    const {headers, keyIdx, diffColSet} = state.compare;
+    if(!state.diffOnly) return headers.map((h,ci)=>ci);
+    return headers.map((h,ci)=>ci).filter(ci => ci===keyIdx || diffColSet.has(ci));
   }
 
-  function renderSideBySide(){
-    const {headers, records} = state.compare;
-    const theadHtml = `<tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>`;
+  function render(){
+    if(!state.compare) return;
+    if(state.view === 'sbs'){
+      const colIndices = getVisibleColumnIndices();
+      if(state.diffOnly && colIndices.length === 0){
+        resultEl.innerHTML = '<div class="empty">' + esc(t('noDiffCols')) + '</div>';
+        return;
+      }
+      resultEl.innerHTML = renderSideBySide(state.compare.records, colIndices);
+    } else {
+      resultEl.innerHTML = renderTransposed(state.compare.records);
+    }
+  }
+
+  function renderSideBySide(records, colIndices){
+    const {headers} = state.compare;
+    const theadHtml = `<tr>${colIndices.map(ci=>`<th>${esc(headers[ci])}</th>`).join('')}</tr>`;
 
     function buildRows(which){
       return records.map(r=>{
@@ -594,9 +624,9 @@ window.addEventListener("message", event => {
         if(r.status==='onlyA') rowClass = which==='a' ? 'row-onlyA' : 'row-missing';
         if(r.status==='onlyB') rowClass = which==='b' ? 'row-onlyB' : 'row-missing';
         if(missing){
-          return `<tr class="${rowClass}">${headers.map((h,ci)=> ci===state.compare.keyIdx ? `<td class="key">—</td>` : `<td>—</td>`).join('')}</tr>`;
+          return `<tr class="${rowClass}">${colIndices.map(ci=> ci===state.compare.keyIdx ? `<td class="key">—</td>` : `<td>—</td>`).join('')}</tr>`;
         }
-        return `<tr class="${rowClass}">${headers.map((h,ci)=>{
+        return `<tr class="${rowClass}">${colIndices.map(ci=>{
           const srcIdx = idxArr[ci];
           const val = srcIdx===-1 ? '' : (row[srcIdx] ?? '');
           const isDiff = r.status==='diff' && r.diffFlags[ci];
@@ -619,15 +649,20 @@ window.addEventListener("message", event => {
       </div>`;
   }
 
-  function renderTransposed(){
-    const {headers, records, idxA, idxB, keyField} = state.compare;
+  function renderTransposed(records){
+    const {headers, idxA, idxB, keyField} = state.compare;
     const badgeMap = { match:[t('match'),'match'], diff:[t('diff'),'diff'], onlyA:[t('statusOnlyA'),'onlyA'], onlyB:[t('statusOnlyB'),'onlyB'] };
+    const colFilterOn = state.diffOnly;
 
     return records.map((r,ri)=>{
       const [label, cls] = badgeMap[r.status];
       const keyDisplay = keyField ? `${esc(keyField)} = ${esc(r.key)}` : `#${ri+1}`;
       const diffCount = r.diffFlags.filter(Boolean).length;
-      const rows = headers.map((h,ci)=>{
+      // 差分列のみ表示: A・Bどちらも存在するレコード(diff/match)では、そのレコード内で値が異なる列だけに絞り込む
+      const canFilterCols = colFilterOn && (r.status === 'diff' || r.status === 'match');
+      const colIndices = headers.map((h,ci)=>ci).filter(ci => !canFilterCols || r.diffFlags[ci]);
+      const rows = colIndices.map(ci=>{
+        const h = headers[ci];
         const va = r.rowA ? (idxA[ci]===-1 ? undefined : (r.rowA[idxA[ci]] ?? '')) : undefined;
         const vb = r.rowB ? (idxB[ci]===-1 ? undefined : (r.rowB[idxB[ci]] ?? '')) : undefined;
         const rowIsDiff = r.status==='diff' && r.diffFlags[ci];
@@ -636,6 +671,9 @@ window.addEventListener("message", event => {
         return `<tr class="${rowIsDiff?'diffrow':''}"><th>${esc(h)}</th><td class="va">${vaHtml}</td><td class="vb">${vbHtml}</td></tr>`;
       }).join('');
       const openAttr = (r.status !== 'match') ? 'open' : '';
+      const bodyHtml = colIndices.length === 0
+        ? `<tr><td colspan="3" style="font-family:var(--sans);color:var(--text-dim);text-align:center;padding:12px;">${esc(t('noDiffCols'))}</td></tr>`
+        : rows;
       return `
         <details class="rec" ${openAttr}>
           <summary>
@@ -646,7 +684,7 @@ window.addEventListener("message", event => {
           </summary>
           <table class="trans">
             <tr><th></th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyA)">${t("dataA")}</th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyB)">${t("dataB")}</th></tr>
-            ${rows}
+            ${bodyHtml}
           </table>
         </details>`;
     }).join('');
@@ -658,6 +696,11 @@ window.addEventListener("message", event => {
     [...viewSeg.children].forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     state.view = btn.dataset.view;
+    render();
+  });
+
+  diffOnlyToggle.addEventListener('change', e=>{
+    state.diffOnly = e.target.checked;
     render();
   });
 
