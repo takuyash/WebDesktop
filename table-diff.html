@@ -127,11 +127,13 @@
   table.data tr.row-onlyA{background:var(--onlyA-bg);}
   table.data tr.row-onlyB{background:var(--onlyB-bg);}
   table.data tr.row-missing td{color:#a4acb6;font-style:italic;}
+  table.data th.selcell, table.data td.selcell{width:26px;padding:5px 4px;text-align:center;white-space:nowrap;}
+  input.rowchk{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;vertical-align:middle;}
 
   /* transposed view */
   .rec{background:var(--panel);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 2px rgba(20,30,40,0.06);}
   .rec > summary{
-    list-style:none;cursor:pointer;padding:9px 14px;display:flex;align-items:center;gap:10px;
+    list-style:none;cursor:pointer;padding:9px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
     background:var(--panel-2);font-size:12.5px;
   }
   .rec > summary::-webkit-details-marker{display:none;}
@@ -144,6 +146,9 @@
   .badge.onlyA{background:var(--onlyA-bg);color:var(--onlyA);}
   .badge.onlyB{background:var(--onlyB-bg);color:var(--onlyB);}
   .rec .cnt{margin-left:auto;color:var(--text-dim);font-family:var(--mono);font-size:11px;}
+  .chkline{display:inline-flex;gap:10px;}
+  .rowchk-label{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-dim);cursor:pointer;}
+  .rowchk-label input{width:13px;height:13px;accent-color:var(--accent);cursor:pointer;}
   table.trans{border-collapse:collapse;width:100%;font-size:12px;}
   table.trans th, table.trans td{padding:6px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}
   table.trans th{width:150px;color:var(--text-dim);font-weight:600;font-size:11.5px;background:var(--panel-2);}
@@ -151,6 +156,20 @@
   table.trans td.va, table.trans td.vb{width:calc(50% - 75px);}
   table.trans tr.diffrow td.va, table.trans tr.diffrow td.vb{background:var(--diff-bg);color:var(--diff);}
   table.trans td.missing{color:#a4acb6;font-style:italic;}
+
+  /* selected-rows comparison */
+  .selected-compare-bar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    padding:10px 14px;margin:24px 0 6px;box-shadow:0 1px 2px rgba(20,30,40,0.06);
+  }
+  .selected-compare-bar .btn{margin-left:auto;}
+  .sel-info{font-family:var(--mono);font-size:12px;color:var(--text-dim);}
+  .sel-hint{font-size:11.5px;color:var(--text-dim);margin:0 0 14px;}
+  .selected-heading{
+    font-size:13.5px;font-weight:700;margin:0 0 10px;color:var(--text);
+    border-left:4px solid var(--accent);padding-left:9px;
+  }
 </style>
 </head>
 <body>
@@ -222,6 +241,16 @@
   <div id="summary"></div>
   <div id="result"><div class="empty" data-i18n="empty">データを貼り付けて「比較する」を押してください</div></div>
 
+  <div class="selected-compare-bar">
+    <span class="sel-info" id="selInfo"></span>
+    <button type="button" class="filebtn" id="clearSelectionBtn" data-i18n="clearSelection">選択をクリア</button>
+    <button class="btn" id="compareSelectedBtn" data-i18n="compareSelected">選択した行で比較</button>
+  </div>
+  <div class="sel-hint" data-i18n="selHint">A・Bを1件ずつ選ぶとAとBを比較します。片方だけで2件以上選ぶと、その中の選択順（前半 vs 後半）で比較します。</div>
+  <h2 class="selected-heading" id="selectedHeading" data-i18n="selectedTitle" style="display:none;">選択した行同士の比較</h2>
+  <div id="selectedSummary"></div>
+  <div id="selectedResult"></div>
+
 <script>
 
 const TABLE_DIFF_I18N = {
@@ -265,7 +294,15 @@ const TABLE_DIFF_I18N = {
     statusOnlyB: "Bのみ",
     missing: "（存在しません）",
     cellDiffCount: "{n} 件のセル差分",
-    noDiffCols: "差分のある列はありません"
+    noDiffCols: "差分のある列はありません",
+    compareSelected: "選択した行で比較",
+    clearSelection: "選択をクリア",
+    selectedTitle: "選択した行同士の比較",
+    selectAtLeastOne: "A・Bを1件ずつ、またはどちらか一方から2件以上チェックしてください",
+    selInfoTemplate: "選択中: A {a}件 / B {b}件",
+    selHint: "A・Bを1件ずつ選ぶとAとBを比較します。片方だけで2件以上選ぶと、その中の選択順（前半 vs 後半）で比較します。",
+    selLabelPair1: "（選択1）",
+    selLabelPair2: "（選択2）"
   },
   en: {
     title: "Table Diff Tool",
@@ -307,7 +344,15 @@ const TABLE_DIFF_I18N = {
     statusOnlyB: "B only",
     missing: "(Not present)",
     cellDiffCount: "{n} cell difference(s)",
-    noDiffCols: "No differing columns"
+    noDiffCols: "No differing columns",
+    compareSelected: "Compare Selected",
+    clearSelection: "Clear Selection",
+    selectedTitle: "Comparison of Selected Rows",
+    selectAtLeastOne: "Check at least one row in both A and B, or two or more rows within just one side.",
+    selInfoTemplate: "Selected: A {a} / B {b}",
+    selHint: "Check one row in each of A and B to compare across them. Check two or more rows within just one side to compare within that side (first half vs. second half, by check order).",
+    selLabelPair1: " (Pick 1)",
+    selLabelPair2: " (Pick 2)"
   }
 };
 
@@ -329,16 +374,14 @@ function applyTableDiffLanguage() {
   });
 
   if (state.compare) {
-    renderSummary({
-      diffCells: state.compare.records.reduce((n, r) => n + r.diffFlags.filter(Boolean).length, 0),
-      onlyACount: state.compare.records.filter(r => r.status === "onlyA").length,
-      onlyBCount: state.compare.records.filter(r => r.status === "onlyB").length,
-      matchRows: state.compare.records.filter(r => r.status === "match").length,
-      diffRows: state.compare.records.filter(r => r.status === "diff").length,
-      total: state.compare.records.length
-    });
+    renderSummary(summaryEl, summarizeRecords(state.compare.records));
     render();
   }
+  if (state.subCompare) {
+    renderSummary(selectedSummaryEl, summarizeRecords(state.subCompare.records));
+    renderSelected();
+  }
+  updateSelInfo();
 }
 
 window.addEventListener("message", event => {
@@ -349,372 +392,551 @@ window.addEventListener("message", event => {
 });
 
 
-(function(){
-  const $ = id => document.getElementById(id);
-  const inputA = $('inputA'), inputB = $('inputB');
-  const keySelect = $('keySelect');
-  const formatSelect = $('formatSelect');
-  const formatHint = $('formatHint');
-  const viewSeg = $('viewSeg');
-  const diffOnlyToggle = $('diffOnlyToggle');
-  const summaryEl = $('summary');
-  const resultEl = $('result');
+const $ = id => document.getElementById(id);
+const inputA = $('inputA'), inputB = $('inputB');
+const keySelect = $('keySelect');
+const formatSelect = $('formatSelect');
+const formatHint = $('formatHint');
+const viewSeg = $('viewSeg');
+const diffOnlyToggle = $('diffOnlyToggle');
+const summaryEl = $('summary');
+const resultEl = $('result');
+const selectedHeadingEl = $('selectedHeading');
+const selectedSummaryEl = $('selectedSummary');
+const selectedResultEl = $('selectedResult');
+const selInfoEl = $('selInfo');
 
-  let state = { a:null, b:null, headers:[], compare:null, view:'sbs', diffOnly:false };
+let state = {
+  a:null, b:null, headers:[],
+  compare:null, subCompare:null,
+  view:'sbs', diffOnly:false,
+  checkedA:new Set(), checkedB:new Set()
+};
 
-  // ---- ファイル読み込み（選択 / ドラッグ&ドロップ） ----
-  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+// ---- ファイル読み込み（選択 / ドラッグ&ドロップ） ----
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-  function extToFormat(name){
-    const ext = (name.split('.').pop() || '').toLowerCase();
-    if(ext === 'csv') return 'csv';
-    if(ext === 'tsv') return 'tsv';
-    return null;
+function extToFormat(name){
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if(ext === 'csv') return 'csv';
+  if(ext === 'tsv') return 'tsv';
+  return null;
+}
+
+function loadFileInto(file, textarea, filenameEl){
+  if(!file) return;
+  if(file.size > MAX_FILE_SIZE){
+    alert(t('fileTooLarge') + file.name);
+    return;
   }
+  const reader = new FileReader();
+  reader.onload = () => {
+    textarea.value = reader.result;
+    filenameEl.textContent = file.name;
+    const fmt = extToFormat(file.name);
+    if(fmt) formatSelect.value = fmt;
+    state.headersSig = null;
+  };
+  reader.onerror = () => {
+    alert(t('fileReadError') + file.name);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
 
-  function loadFileInto(file, textarea, filenameEl){
-    if(!file) return;
-    if(file.size > MAX_FILE_SIZE){
-      alert(t('fileTooLarge') + file.name);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      textarea.value = reader.result;
-      filenameEl.textContent = file.name;
-      const fmt = extToFormat(file.name);
-      if(fmt) formatSelect.value = fmt;
-      state.headersSig = null;
-    };
-    reader.onerror = () => {
-      alert(t('fileReadError') + file.name);
-    };
-    reader.readAsText(file, 'UTF-8');
-  }
+function setupFileInput(btnId, inputId, dropId, textarea, filenameEl){
+  const btn = $(btnId), fileInput = $(inputId), dropzone = $(dropId);
+  btn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    if(fileInput.files && fileInput.files[0]) loadFileInto(fileInput.files[0], textarea, filenameEl);
+    fileInput.value = '';
+  });
+  ['dragenter','dragover'].forEach(evt=>{
+    dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
+  });
+  dropzone.addEventListener('drop', e=>{
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file) loadFileInto(file, textarea, filenameEl);
+  });
+}
 
-  function setupFileInput(btnId, inputId, dropId, textarea, filenameEl){
-    const btn = $(btnId), fileInput = $(inputId), dropzone = $(dropId);
-    btn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => {
-      if(fileInput.files && fileInput.files[0]) loadFileInto(fileInput.files[0], textarea, filenameEl);
-      fileInput.value = '';
-    });
-    ['dragenter','dragover'].forEach(evt=>{
-      dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
-    });
-    ['dragleave','drop'].forEach(evt=>{
-      dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
-    });
-    dropzone.addEventListener('drop', e=>{
-      const file = e.dataTransfer.files && e.dataTransfer.files[0];
-      if(file) loadFileInto(file, textarea, filenameEl);
-    });
-  }
+// ---- 区切り文字の自動判定 ----
+function detectDelimiter(text){
+  const firstLine = text.split('\n')[0] || '';
+  if(firstLine.includes('\t')) return 'tsv';
+  if(firstLine.includes(',')) return 'csv';
+  return 'plain';
+}
 
-  // ---- 区切り文字の自動判定 ----
-  function detectDelimiter(text){
-    const firstLine = text.split('\n')[0] || '';
-    if(firstLine.includes('\t')) return 'tsv';
-    if(firstLine.includes(',')) return 'csv';
-    return 'plain';
-  }
-
-  // ---- CSV/TSV パーサー（ダブルクォート囲み・""エスケープ・引用内の改行に対応） ----
-  function parseDelimited(text, delimiter){
-    const rows = [];
-    let row = [];
-    let field = '';
-    let inQuotes = false;
-    let i = 0;
-    const len = text.length;
-    while(i < len){
-      const c = text[i];
-      if(inQuotes){
-        if(c === '"'){
-          if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
-          inQuotes = false; i++; continue;
-        }
-        field += c; i++; continue;
-      } else {
-        if(c === '"' && field === ''){ inQuotes = true; i++; continue; }
-        if(c === delimiter){ row.push(field); field=''; i++; continue; }
-        if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
-        if(c === '\r'){ i++; continue; }
-        field += c; i++; continue;
+// ---- CSV/TSV パーサー（ダブルクォート囲み・""エスケープ・引用内の改行に対応） ----
+function parseDelimited(text, delimiter){
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+  const len = text.length;
+  while(i < len){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
       }
-    }
-    if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
-    return rows.map(r => r.map(s => s.trim()));
-  }
-
-  function parsePlain(text){
-    return text.split('\n')
-      .filter(l => l.trim().length>0)
-      .map(l => l.split(/\s{2,}/).map(s=>s.trim()));
-  }
-
-  function parseTable(text){
-    const normalized = text.replace(/\r\n/g,'\n');
-    if(normalized.trim().length === 0) return {headers:[], rows:[], detected:null};
-
-    const mode = formatSelect.value === 'auto' ? detectDelimiter(normalized) : formatSelect.value;
-
-    let rows;
-    if(mode === 'tsv') rows = parseDelimited(normalized, '\t');
-    else if(mode === 'csv') rows = parseDelimited(normalized, ',');
-    else rows = parsePlain(normalized);
-
-    rows = rows.filter(r => r.some(c => c.trim().length>0));
-    if(rows.length === 0) return {headers:[], rows:[], detected:mode};
-
-    const rawHeaders = rows[0].map(s=>s.trim());
-    const dataRows = rows.slice(1).map(cells=>{
-      while(cells.length < rawHeaders.length) cells.push('');
-      return cells;
-    });
-    return {headers: rawHeaders, rows: dataRows, detected: mode};
-  }
-
-  function labelFor(mode){
-    if(mode==='tsv') return t('parseTsv');
-    if(mode==='csv') return t('parseCsv');
-    if(mode==='plain') return t('parsePlain');
-    return '';
-  }
-
-  function unionHeaders(hA, hB){
-    const combined = [...hA];
-    hB.forEach(h=>{ if(!combined.includes(h)) combined.push(h); });
-    return combined;
-  }
-
-  function buildKeyOptions(headers){
-    const prevValue = keySelect.value;
-    keySelect.innerHTML = '<option value="" data-i18n="rowOrder">行番号（貼り付け順）</option>';
-    headers.forEach(h=>{
-      const opt = document.createElement('option');
-      opt.value = h; opt.textContent = h;
-      keySelect.appendChild(opt);
-    });
-    if(state.userSetKey){
-      // ユーザーが一度でも手動で選んだ値は常に維持する（値が消えた場合のみ行番号に戻す）
-      keySelect.value = headers.includes(prevValue) ? prevValue : '';
+      field += c; i++; continue;
     } else {
-      const idCol = headers.find(h => h.toLowerCase() === 'id');
-      if(idCol) keySelect.value = idCol;
+      if(c === '"' && field === ''){ inQuotes = true; i++; continue; }
+      if(c === delimiter){ row.push(field); field=''; i++; continue; }
+      if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+      if(c === '\r'){ i++; continue; }
+      field += c; i++; continue;
     }
   }
+  if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+  return rows.map(r => r.map(s => s.trim()));
+}
 
-  function runCompare(){
-    const a = parseTable(inputA.value);
-    const b = parseTable(inputB.value);
-    if(a.headers.length===0 || b.headers.length===0){
-      resultEl.innerHTML = '<div class="empty">' + esc(t('bothDataRequired')) + '</div>';
-      summaryEl.innerHTML = '';
-      formatHint.textContent = '';
-      return;
-    }
-    const hints = [a.detected, b.detected].filter(Boolean);
-    formatHint.textContent = hints.length ? `(${labelFor(hints[0])})` : '';
+function parsePlain(text){
+  return text.split('\n')
+    .filter(l => l.trim().length>0)
+    .map(l => l.split(/\s{2,}/).map(s=>s.trim()));
+}
 
-    const headers = unionHeaders(a.headers, b.headers);
-    const sig = headers.join('|');
-    if(state.headersSig !== sig){
-      buildKeyOptions(headers);
-      state.headersSig = sig;
-    }
-    state.a = a; state.b = b; state.headers = headers;
-    compareNow();
+function parseTable(text){
+  const normalized = text.replace(/\r\n/g,'\n');
+  if(normalized.trim().length === 0) return {headers:[], rows:[], detected:null};
+
+  const mode = formatSelect.value === 'auto' ? detectDelimiter(normalized) : formatSelect.value;
+
+  let rows;
+  if(mode === 'tsv') rows = parseDelimited(normalized, '\t');
+  else if(mode === 'csv') rows = parseDelimited(normalized, ',');
+  else rows = parsePlain(normalized);
+
+  rows = rows.filter(r => r.some(c => c.trim().length>0));
+  if(rows.length === 0) return {headers:[], rows:[], detected:mode};
+
+  const rawHeaders = rows[0].map(s=>s.trim());
+  const dataRows = rows.slice(1).map(cells=>{
+    while(cells.length < rawHeaders.length) cells.push('');
+    return cells;
+  });
+  return {headers: rawHeaders, rows: dataRows, detected: mode};
+}
+
+function labelFor(mode){
+  if(mode==='tsv') return t('parseTsv');
+  if(mode==='csv') return t('parseCsv');
+  if(mode==='plain') return t('parsePlain');
+  return '';
+}
+
+function unionHeaders(hA, hB){
+  const combined = [...hA];
+  hB.forEach(h=>{ if(!combined.includes(h)) combined.push(h); });
+  return combined;
+}
+
+function buildKeyOptions(headers){
+  const prevValue = keySelect.value;
+  keySelect.innerHTML = '<option value="" data-i18n="rowOrder">行番号（貼り付け順）</option>';
+  headers.forEach(h=>{
+    const opt = document.createElement('option');
+    opt.value = h; opt.textContent = h;
+    keySelect.appendChild(opt);
+  });
+  if(state.userSetKey){
+    // ユーザーが一度でも手動で選んだ値は常に維持する（値が消えた場合のみ行番号に戻す）
+    keySelect.value = headers.includes(prevValue) ? prevValue : '';
+  } else {
+    const idCol = headers.find(h => h.toLowerCase() === 'id');
+    if(idCol) keySelect.value = idCol;
+  }
+}
+
+function runCompare(){
+  const a = parseTable(inputA.value);
+  const b = parseTable(inputB.value);
+  if(a.headers.length===0 || b.headers.length===0){
+    resultEl.innerHTML = '<div class="empty">' + esc(t('bothDataRequired')) + '</div>';
+    summaryEl.innerHTML = '';
+    formatHint.textContent = '';
+    return;
+  }
+  const hints = [a.detected, b.detected].filter(Boolean);
+  formatHint.textContent = hints.length ? `(${labelFor(hints[0])})` : '';
+
+  const headers = unionHeaders(a.headers, b.headers);
+  const sig = headers.join('|');
+  if(state.headersSig !== sig){
+    buildKeyOptions(headers);
+    state.headersSig = sig;
+  }
+  state.a = a; state.b = b; state.headers = headers;
+  compareNow();
+}
+
+// ---- キーで突き合わせてレコード配列を組み立てる共通ロジック ----
+// leftItems / rightItems は {row, idxArr} の配列。
+// idxArr は「union headers の列番号 -> その行の元テーブルでの列番号」の対応表で、
+// 行ごとに元テーブル（A由来かB由来か）が異なっていても正しく値を取り出せるようにする。
+// keyIdx が -1 の場合は、キー列を使わず「選択順（配列内の並び順）」で1対1に突き合わせる。
+function buildComparisonRecords(headers, keyIdx, leftItems, rightItems){
+  function keyOf(item, rowNum){
+    if(keyIdx === -1) return '__row'+rowNum;
+    const srcIdx = item.idxArr[keyIdx];
+    return srcIdx === -1 ? '__row'+rowNum : item.row[srcIdx];
   }
 
-  function compareNow(){
-    const {a,b,headers} = state;
-    if(!a) return;
-    const idxA = headers.map(h => a.headers.indexOf(h));
-    const idxB = headers.map(h => b.headers.indexOf(h));
-    const keyField = keySelect.value;
-    const keyIdx = keyField ? headers.indexOf(keyField) : -1;
+  const mapL = new Map(), orderL = [];
+  leftItems.forEach((item,i)=>{ const k = keyOf(item,i); if(!mapL.has(k)){ mapL.set(k,item); orderL.push(k);} });
+  const mapR = new Map(), orderR = [];
+  rightItems.forEach((item,i)=>{ const k = keyOf(item,i); if(!mapR.has(k)){ mapR.set(k,item); orderR.push(k);} });
 
-    function keyOf(row, idxArr, rowNum){
-      if(keyIdx === -1) return '__row'+rowNum;
-      const srcIdx = idxArr[keyIdx];
-      return srcIdx === -1 ? '__row'+rowNum : row[srcIdx];
-    }
+  const seen = new Set();
+  const keys = [];
+  orderL.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
+  orderR.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
 
-    const mapA = new Map(), orderA = [];
-    a.rows.forEach((row,i)=>{ const k = keyOf(row, idxA, i); if(!mapA.has(k)){ mapA.set(k,row); orderA.push(k);} });
-    const mapB = new Map(), orderB = [];
-    b.rows.forEach((row,i)=>{ const k = keyOf(row, idxB, i); if(!mapB.has(k)){ mapB.set(k,row); orderB.push(k);} });
+  const diffColSet = new Set();
+  const records = keys.map(k=>{
+    const L = mapL.get(k), R = mapR.get(k);
+    let status, diffFlags = headers.map(()=>false);
+    if(L && R){
+      let rowHasDiff=false;
+      headers.forEach((h,ci)=>{
+        const va = L.idxArr[ci]===-1 ? undefined : (L.row[L.idxArr[ci]] ?? '');
+        const vb = R.idxArr[ci]===-1 ? undefined : (R.row[R.idxArr[ci]] ?? '');
+        if(va !== vb){ diffFlags[ci]=true; rowHasDiff=true; diffColSet.add(ci); }
+      });
+      status = rowHasDiff ? 'diff' : 'match';
+    } else if(L){ status='onlyA'; }
+    else { status='onlyB'; }
+    return {
+      key:k,
+      rowA: L ? L.row : undefined, idxA: L ? L.idxArr : null,
+      rowB: R ? R.row : undefined, idxB: R ? R.idxArr : null,
+      status, diffFlags
+    };
+  });
 
-    const seen = new Set();
-    const keys = [];
-    orderA.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
-    orderB.forEach(k=>{ if(!seen.has(k)){ keys.push(k); seen.add(k);} });
+  return { records, diffColSet };
+}
 
-    let diffCells=0, onlyACount=0, onlyBCount=0, matchRows=0, diffRows=0;
-    const diffColSet = new Set();
-    const records = keys.map(k=>{
-      const rowA = mapA.get(k), rowB = mapB.get(k);
-      let status, diffFlags = headers.map(()=>false);
-      if(rowA && rowB){
-        let rowHasDiff=false;
-        headers.forEach((h,ci)=>{
-          const va = idxA[ci]===-1 ? undefined : (rowA[idxA[ci]] ?? '');
-          const vb = idxB[ci]===-1 ? undefined : (rowB[idxB[ci]] ?? '');
-          if(va !== vb){ diffFlags[ci]=true; diffCells++; rowHasDiff=true; diffColSet.add(ci); }
-        });
-        status = rowHasDiff ? 'diff' : 'match';
-        rowHasDiff ? diffRows++ : matchRows++;
-      } else if(rowA){ status='onlyA'; onlyACount++; }
-      else { status='onlyB'; onlyBCount++; }
-      return { key:k, rowA, rowB, status, diffFlags };
-    });
+function summarizeRecords(records){
+  return {
+    diffCells: records.reduce((n,r)=>n + r.diffFlags.filter(Boolean).length, 0),
+    onlyACount: records.filter(r=>r.status==='onlyA').length,
+    onlyBCount: records.filter(r=>r.status==='onlyB').length,
+    matchRows: records.filter(r=>r.status==='match').length,
+    diffRows: records.filter(r=>r.status==='diff').length,
+    total: records.length
+  };
+}
 
-    state.compare = { headers, idxA, idxB, records, keyIdx, keyField, diffColSet };
-    renderSummary({diffCells, onlyACount, onlyBCount, matchRows, diffRows, total:keys.length});
-    render();
+function compareNow(){
+  const {a,b,headers} = state;
+  if(!a) return;
+  const idxA = headers.map(h => a.headers.indexOf(h));
+  const idxB = headers.map(h => b.headers.indexOf(h));
+  const keyField = keySelect.value;
+  const keyIdx = keyField ? headers.indexOf(keyField) : -1;
+
+  const leftItems = a.rows.map(row=>({row, idxArr:idxA}));
+  const rightItems = b.rows.map(row=>({row, idxArr:idxB}));
+  const {records, diffColSet} = buildComparisonRecords(headers, keyIdx, leftItems, rightItems);
+
+  state.compare = { headers, keyIdx, keyField, records, diffColSet };
+  // データや突き合わせ条件が変わったら選択状態と「選択した行の比較」はリセットする
+  state.checkedA = new Set();
+  state.checkedB = new Set();
+  state.subCompare = null;
+  clearSelectedUI();
+
+  renderSummary(summaryEl, summarizeRecords(records));
+  render();
+}
+
+// ---- チェックされた行だけを抜き出して再比較する ----
+// ・A/B両方にチェックがあれば：A選択 vs B選択（従来どおり、現在のキー列で突き合わせ）
+// ・片方だけに2件以上チェックがあれば：その側の中だけで、選択順の前半 vs 後半を比較
+//   （同じ側の行同士はキー値が一致しないのが普通なので、この場合はキー列を無視し、
+//    　チェックした順番で1対1に突き合わせる）
+function compareSelected(){
+  if(!state.compare) return;
+  const {headers, keyIdx} = state.compare;
+  const recordByKey = new Map(state.compare.records.map(r=>[r.key, r]));
+
+  const aItems = [...state.checkedA].map(k=>{
+    const r = recordByKey.get(k);
+    return (r && r.rowA) ? {row:r.rowA, idxArr:r.idxA} : null;
+  }).filter(Boolean);
+  const bItems = [...state.checkedB].map(k=>{
+    const r = recordByKey.get(k);
+    return (r && r.rowB) ? {row:r.rowB, idxArr:r.idxB} : null;
+  }).filter(Boolean);
+
+  let leftItems, rightItems, mode, effectiveKeyIdx;
+  if(aItems.length>0 && bItems.length>0){
+    leftItems = aItems; rightItems = bItems; mode = 'cross'; effectiveKeyIdx = keyIdx;
+  } else if(aItems.length>=2){
+    const mid = Math.ceil(aItems.length/2);
+    leftItems = aItems.slice(0,mid); rightItems = aItems.slice(mid);
+    mode = 'aOnly'; effectiveKeyIdx = -1;
+  } else if(bItems.length>=2){
+    const mid = Math.ceil(bItems.length/2);
+    leftItems = bItems.slice(0,mid); rightItems = bItems.slice(mid);
+    mode = 'bOnly'; effectiveKeyIdx = -1;
+  } else {
+    selectedHeadingEl.style.display = '';
+    selectedResultEl.innerHTML = '<div class="empty">' + esc(t('selectAtLeastOne')) + '</div>';
+    selectedSummaryEl.innerHTML = '';
+    state.subCompare = null;
+    return;
   }
 
-  function renderSummary(s){
-    summaryEl.innerHTML = `
-      <div class="summary">
-        <div class="item"><b>${s.total}</b>${t("compareRows")}</div>
-        <div class="item"><b>${s.matchRows}</b>${t("allMatch")}</div>
-        <div class="item"><b class="diff-num">${s.diffRows}</b>${t("diffRows")}</div>
-        <div class="item"><b class="diff-num">${s.diffCells}</b>${t("diffCells")}</div>
-        <div class="item"><b class="onlyA-num">${s.onlyACount}</b>${t("onlyA")}</div>
-        <div class="item"><b class="onlyB-num">${s.onlyBCount}</b>${t("onlyB")}</div>
-      </div>`;
-  }
+  const {records, diffColSet} = buildComparisonRecords(headers, effectiveKeyIdx, leftItems, rightItems);
+  state.subCompare = { headers, keyIdx: effectiveKeyIdx, records, diffColSet, mode };
 
-  function esc(s){
-    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  selectedHeadingEl.style.display = '';
+  renderSummary(selectedSummaryEl, summarizeRecords(records));
+  renderSelected();
+}
 
-  function getVisibleColumnIndices(){
-    const {headers, keyIdx, diffColSet} = state.compare;
-    if(!state.diffOnly) return headers.map((h,ci)=>ci);
-    return headers.map((h,ci)=>ci).filter(ci => ci===keyIdx || diffColSet.has(ci));
-  }
+function selectedTitlesFor(mode){
+  if(mode === 'aOnly') return { leftTitle: t('dataA')+t('selLabelPair1'), rightTitle: t('dataA')+t('selLabelPair2') };
+  if(mode === 'bOnly') return { leftTitle: t('dataB')+t('selLabelPair1'), rightTitle: t('dataB')+t('selLabelPair2') };
+  return { leftTitle: t('dataA'), rightTitle: t('dataB') };
+}
 
-  function render(){
-    if(!state.compare) return;
-    if(state.view === 'sbs'){
-      const colIndices = getVisibleColumnIndices();
-      if(state.diffOnly && colIndices.length === 0){
-        resultEl.innerHTML = '<div class="empty">' + esc(t('noDiffCols')) + '</div>';
-        return;
-      }
-      resultEl.innerHTML = renderSideBySide(state.compare.records, colIndices);
+function renderSummary(target, s){
+  target.innerHTML = `
+    <div class="summary">
+      <div class="item"><b>${s.total}</b>${t("compareRows")}</div>
+      <div class="item"><b>${s.matchRows}</b>${t("allMatch")}</div>
+      <div class="item"><b class="diff-num">${s.diffRows}</b>${t("diffRows")}</div>
+      <div class="item"><b class="diff-num">${s.diffCells}</b>${t("diffCells")}</div>
+      <div class="item"><b class="onlyA-num">${s.onlyACount}</b>${t("onlyA")}</div>
+      <div class="item"><b class="onlyB-num">${s.onlyBCount}</b>${t("onlyB")}</div>
+    </div>`;
+}
+
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function getVisibleColumnIndices(compareObj){
+  const {headers, keyIdx, diffColSet} = compareObj;
+  if(!state.diffOnly) return headers.map((h,ci)=>ci);
+  return headers.map((h,ci)=>ci).filter(ci => ci===keyIdx || diffColSet.has(ci));
+}
+
+function render(){
+  if(!state.compare) return;
+  if(state.view === 'sbs'){
+    const colIndices = getVisibleColumnIndices(state.compare);
+    if(state.diffOnly && colIndices.length === 0){
+      resultEl.innerHTML = '<div class="empty">' + esc(t('noDiffCols')) + '</div>';
     } else {
-      resultEl.innerHTML = renderTransposed(state.compare.records);
+      resultEl.innerHTML = renderSideBySide(state.compare.records, colIndices, state.compare, {selectable:true});
     }
+  } else {
+    resultEl.innerHTML = renderTransposed(state.compare.records, state.compare, {selectable:true});
   }
+}
 
-  function renderSideBySide(records, colIndices){
-    const {headers} = state.compare;
-    const theadHtml = `<tr>${colIndices.map(ci=>`<th>${esc(headers[ci])}</th>`).join('')}</tr>`;
+function renderSelected(){
+  if(!state.subCompare) return;
+  const titles = selectedTitlesFor(state.subCompare.mode);
+  if(state.view === 'sbs'){
+    const colIndices = getVisibleColumnIndices(state.subCompare);
+    if(state.diffOnly && colIndices.length === 0){
+      selectedResultEl.innerHTML = '<div class="empty">' + esc(t('noDiffCols')) + '</div>';
+    } else {
+      selectedResultEl.innerHTML = renderSideBySide(state.subCompare.records, colIndices, state.subCompare, {selectable:false, ...titles});
+    }
+  } else {
+    selectedResultEl.innerHTML = renderTransposed(state.subCompare.records, state.subCompare, {selectable:false, ...titles});
+  }
+}
 
-    function buildRows(which){
-      return records.map(r=>{
-        const row = which==='a' ? r.rowA : r.rowB;
-        const idxArr = which==='a' ? state.compare.idxA : state.compare.idxB;
-        const missing = (which==='a' && r.status==='onlyB') || (which==='b' && r.status==='onlyA');
-        let rowClass = '';
-        if(r.status==='onlyA') rowClass = which==='a' ? 'row-onlyA' : 'row-missing';
-        if(r.status==='onlyB') rowClass = which==='b' ? 'row-onlyB' : 'row-missing';
+function clearSelectedUI(){
+  selectedSummaryEl.innerHTML = '';
+  selectedResultEl.innerHTML = '';
+  selectedHeadingEl.style.display = 'none';
+}
+
+function updateSelInfo(){
+  selInfoEl.textContent = t('selInfoTemplate')
+    .replace('{a}', state.checkedA.size)
+    .replace('{b}', state.checkedB.size);
+}
+
+function renderSideBySide(records, colIndices, compareObj, opts={}){
+  const {headers, keyIdx} = compareObj;
+  const selectable = !!opts.selectable;
+  const leftTitle = opts.leftTitle ?? t("dataA");
+  const rightTitle = opts.rightTitle ?? t("dataB");
+  const theadHtml = `<tr>${selectable ? '<th class="selcell"></th>' : ''}${colIndices.map(ci=>`<th>${esc(headers[ci])}</th>`).join('')}</tr>`;
+
+  function buildRows(which){
+    return records.map(r=>{
+      const row = which==='a' ? r.rowA : r.rowB;
+      const idxArr = which==='a' ? r.idxA : r.idxB;
+      const missing = which==='a' ? !r.rowA : !r.rowB;
+      let rowClass = '';
+      if(r.status==='onlyA') rowClass = which==='a' ? 'row-onlyA' : 'row-missing';
+      if(r.status==='onlyB') rowClass = which==='b' ? 'row-onlyB' : 'row-missing';
+
+      let chkHtml = '';
+      if(selectable){
         if(missing){
-          return `<tr class="${rowClass}">${colIndices.map(ci=> ci===state.compare.keyIdx ? `<td class="key">—</td>` : `<td>—</td>`).join('')}</tr>`;
+          chkHtml = '<td class="selcell"></td>';
+        } else {
+          const checkedSet = which==='a' ? state.checkedA : state.checkedB;
+          const isChecked = checkedSet.has(r.key) ? 'checked' : '';
+          chkHtml = `<td class="selcell"><input type="checkbox" class="rowchk" data-side="${which}" data-key="${esc(r.key)}" ${isChecked}></td>`;
         }
-        return `<tr class="${rowClass}">${colIndices.map(ci=>{
-          const srcIdx = idxArr[ci];
-          const val = srcIdx===-1 ? '' : (row[srcIdx] ?? '');
-          const isDiff = r.status==='diff' && r.diffFlags[ci];
-          const cls = [ci===state.compare.keyIdx ? 'key':'', isDiff ? 'diffcell':''].filter(Boolean).join(' ');
-          return `<td class="${cls}">${esc(val)}</td>`;
-        }).join('')}</tr>`;
-      }).join('');
-    }
+      }
 
-    return `
-      <div class="sbs-wrap">
-        <div class="sbs-col a">
-          <h3>${t("dataA")}</h3>
-          <div class="tbl-scroll"><table class="data"><thead>${theadHtml}</thead><tbody>${buildRows('a')}</tbody></table></div>
-        </div>
-        <div class="sbs-col b">
-          <h3>${t("dataB")}</h3>
-          <div class="tbl-scroll"><table class="data"><thead>${theadHtml}</thead><tbody>${buildRows('b')}</tbody></table></div>
-        </div>
-      </div>`;
-  }
-
-  function renderTransposed(records){
-    const {headers, idxA, idxB, keyField} = state.compare;
-    const badgeMap = { match:[t('match'),'match'], diff:[t('diff'),'diff'], onlyA:[t('statusOnlyA'),'onlyA'], onlyB:[t('statusOnlyB'),'onlyB'] };
-    const colFilterOn = state.diffOnly;
-
-    return records.map((r,ri)=>{
-      const [label, cls] = badgeMap[r.status];
-      const keyDisplay = keyField ? `${esc(keyField)} = ${esc(r.key)}` : `#${ri+1}`;
-      const diffCount = r.diffFlags.filter(Boolean).length;
-      // 差分列のみ表示: A・Bどちらも存在するレコード(diff/match)では、そのレコード内で値が異なる列だけに絞り込む
-      const canFilterCols = colFilterOn && (r.status === 'diff' || r.status === 'match');
-      const colIndices = headers.map((h,ci)=>ci).filter(ci => !canFilterCols || r.diffFlags[ci]);
-      const rows = colIndices.map(ci=>{
-        const h = headers[ci];
-        const va = r.rowA ? (idxA[ci]===-1 ? undefined : (r.rowA[idxA[ci]] ?? '')) : undefined;
-        const vb = r.rowB ? (idxB[ci]===-1 ? undefined : (r.rowB[idxB[ci]] ?? '')) : undefined;
-        const rowIsDiff = r.status==='diff' && r.diffFlags[ci];
-        const vaHtml = va===undefined ? '<span class="missing">' + esc(t('missing')) + '</span>' : esc(va);
-        const vbHtml = vb===undefined ? '<span class="missing">' + esc(t('missing')) + '</span>' : esc(vb);
-        return `<tr class="${rowIsDiff?'diffrow':''}"><th>${esc(h)}</th><td class="va">${vaHtml}</td><td class="vb">${vbHtml}</td></tr>`;
-      }).join('');
-      const openAttr = (r.status !== 'match') ? 'open' : '';
-      const bodyHtml = colIndices.length === 0
-        ? `<tr><td colspan="3" style="font-family:var(--sans);color:var(--text-dim);text-align:center;padding:12px;">${esc(t('noDiffCols'))}</td></tr>`
-        : rows;
-      return `
-        <details class="rec" ${openAttr}>
-          <summary>
-            <span class="chev">▶</span>
-            <span class="keylabel">${keyDisplay}</span>
-            <span class="badge ${cls}">${label}</span>
-            <span class="cnt">${r.status==='diff' ? t('cellDiffCount').replace('{n}', diffCount) : ''}</span>
-          </summary>
-          <table class="trans">
-            <tr><th></th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyA)">${t("dataA")}</th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyB)">${t("dataB")}</th></tr>
-            ${bodyHtml}
-          </table>
-        </details>`;
+      if(missing){
+        return `<tr class="${rowClass}">${chkHtml}${colIndices.map(ci=> ci===keyIdx ? `<td class="key">—</td>` : `<td>—</td>`).join('')}</tr>`;
+      }
+      return `<tr class="${rowClass}">${chkHtml}${colIndices.map(ci=>{
+        const srcIdx = idxArr[ci];
+        const val = srcIdx===-1 ? '' : (row[srcIdx] ?? '');
+        const isDiff = r.status==='diff' && r.diffFlags[ci];
+        const cls = [ci===keyIdx ? 'key':'', isDiff ? 'diffcell':''].filter(Boolean).join(' ');
+        return `<td class="${cls}">${esc(val)}</td>`;
+      }).join('')}</tr>`;
     }).join('');
   }
 
-  viewSeg.addEventListener('click', e=>{
-    const btn = e.target.closest('button');
-    if(!btn) return;
-    [...viewSeg.children].forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    state.view = btn.dataset.view;
-    render();
-  });
+  return `
+    <div class="sbs-wrap">
+      <div class="sbs-col a">
+        <h3>${esc(leftTitle)}</h3>
+        <div class="tbl-scroll"><table class="data"><thead>${theadHtml}</thead><tbody>${buildRows('a')}</tbody></table></div>
+      </div>
+      <div class="sbs-col b">
+        <h3>${esc(rightTitle)}</h3>
+        <div class="tbl-scroll"><table class="data"><thead>${theadHtml}</thead><tbody>${buildRows('b')}</tbody></table></div>
+      </div>
+    </div>`;
+}
 
-  diffOnlyToggle.addEventListener('change', e=>{
-    state.diffOnly = e.target.checked;
-    render();
-  });
+function renderTransposed(records, compareObj, opts={}){
+  const {headers} = compareObj;
+  const selectable = !!opts.selectable;
+  const leftTitle = opts.leftTitle ?? t("dataA");
+  const rightTitle = opts.rightTitle ?? t("dataB");
+  const badgeMap = { match:[t('match'),'match'], diff:[t('diff'),'diff'], onlyA:[t('statusOnlyA'),'onlyA'], onlyB:[t('statusOnlyB'),'onlyB'] };
+  const colFilterOn = state.diffOnly;
 
-  keySelect.addEventListener('change', ()=>{ state.userSetKey = true; if(state.a) compareNow(); });
-  formatSelect.addEventListener('change', ()=>{ state.headersSig = null; });
-  $('compareBtn').addEventListener('click', runCompare);
+  return records.map((r,ri)=>{
+    const [label, cls] = badgeMap[r.status];
+    const keyDisplay = `#${ri+1}`;
+    const diffCount = r.diffFlags.filter(Boolean).length;
+    // 差分列のみ表示: 左右どちらも存在するレコード(diff/match)では、そのレコード内で値が異なる列だけに絞り込む
+    const canFilterCols = colFilterOn && (r.status === 'diff' || r.status === 'match');
+    const colIndices = headers.map((h,ci)=>ci).filter(ci => !canFilterCols || r.diffFlags[ci]);
+    const rows = colIndices.map(ci=>{
+      const h = headers[ci];
+      const va = r.rowA ? (r.idxA[ci]===-1 ? undefined : (r.rowA[r.idxA[ci]] ?? '')) : undefined;
+      const vb = r.rowB ? (r.idxB[ci]===-1 ? undefined : (r.rowB[r.idxB[ci]] ?? '')) : undefined;
+      const rowIsDiff = r.status==='diff' && r.diffFlags[ci];
+      const vaHtml = va===undefined ? '<span class="missing">' + esc(t('missing')) + '</span>' : esc(va);
+      const vbHtml = vb===undefined ? '<span class="missing">' + esc(t('missing')) + '</span>' : esc(vb);
+      return `<tr class="${rowIsDiff?'diffrow':''}"><th>${esc(h)}</th><td class="va">${vaHtml}</td><td class="vb">${vbHtml}</td></tr>`;
+    }).join('');
+    const openAttr = (r.status !== 'match') ? 'open' : '';
+    const bodyHtml = colIndices.length === 0
+      ? `<tr><td colspan="3" style="font-family:var(--sans);color:var(--text-dim);text-align:center;padding:12px;">${esc(t('noDiffCols'))}</td></tr>`
+      : rows;
 
-  const filenameA = $('filenameA'), filenameB = $('filenameB');
-  setupFileInput('fileBtnA', 'fileInputA', 'dropzoneA', inputA, filenameA);
-  setupFileInput('fileBtnB', 'fileInputB', 'dropzoneB', inputB, filenameB);
-  inputA.addEventListener('input', ()=>{ filenameA.textContent=''; });
-  inputB.addEventListener('input', ()=>{ filenameB.textContent=''; });
-  applyTableDiffLanguage();
-})();
+    let chkHtml = '';
+    if(selectable){
+      const parts = [];
+      if(r.rowA){
+        const checked = state.checkedA.has(r.key) ? 'checked' : '';
+        parts.push(`<label class="rowchk-label" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" data-side="a" data-key="${esc(r.key)}" ${checked} onclick="event.stopPropagation()">${esc(t('dataA'))}</label>`);
+      }
+      if(r.rowB){
+        const checked = state.checkedB.has(r.key) ? 'checked' : '';
+        parts.push(`<label class="rowchk-label" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" data-side="b" data-key="${esc(r.key)}" ${checked} onclick="event.stopPropagation()">${esc(t('dataB'))}</label>`);
+      }
+      if(parts.length) chkHtml = `<span class="chkline">${parts.join('')}</span>`;
+    }
+
+    return `
+      <details class="rec" ${openAttr}>
+        <summary>
+          <span class="chev">▶</span>
+          <span class="keylabel">${keyDisplay}</span>
+          <span class="badge ${cls}">${label}</span>
+          ${chkHtml}
+          <span class="cnt">${r.status==='diff' ? t('cellDiffCount').replace('{n}', diffCount) : ''}</span>
+        </summary>
+        <table class="trans">
+          <tr><th></th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyA)">${esc(leftTitle)}</th><th style="font-family:var(--sans);width:calc(50% - 75px);color:var(--onlyB)">${esc(rightTitle)}</th></tr>
+          ${bodyHtml}
+        </table>
+      </details>`;
+  }).join('');
+}
+
+viewSeg.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  [...viewSeg.children].forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.view = btn.dataset.view;
+  render();
+  renderSelected();
+});
+
+diffOnlyToggle.addEventListener('change', e=>{
+  state.diffOnly = e.target.checked;
+  render();
+  renderSelected();
+});
+
+keySelect.addEventListener('change', ()=>{ state.userSetKey = true; if(state.a) compareNow(); });
+formatSelect.addEventListener('change', ()=>{ state.headersSig = null; });
+$('compareBtn').addEventListener('click', runCompare);
+
+// チェックボックスの変更を、比較グリッド(#result)へのイベント委任で拾う（横並び／縦横変換の両方に対応）
+resultEl.addEventListener('change', e=>{
+  const cb = e.target.closest('input.rowchk');
+  if(!cb) return;
+  const side = cb.dataset.side;
+  const key = cb.dataset.key;
+  const set = side === 'a' ? state.checkedA : state.checkedB;
+  if(cb.checked) set.add(key); else set.delete(key);
+  updateSelInfo();
+});
+
+$('compareSelectedBtn').addEventListener('click', compareSelected);
+
+$('clearSelectionBtn').addEventListener('click', ()=>{
+  state.checkedA.clear();
+  state.checkedB.clear();
+  updateSelInfo();
+  render();
+  state.subCompare = null;
+  clearSelectedUI();
+});
+
+const filenameA = $('filenameA'), filenameB = $('filenameB');
+setupFileInput('fileBtnA', 'fileInputA', 'dropzoneA', inputA, filenameA);
+setupFileInput('fileBtnB', 'fileInputB', 'dropzoneB', inputB, filenameB);
+inputA.addEventListener('input', ()=>{ filenameA.textContent=''; });
+inputB.addEventListener('input', ()=>{ filenameB.textContent=''; });
+
+updateSelInfo();
+applyTableDiffLanguage();
 </script>
 </body>
 </html>
