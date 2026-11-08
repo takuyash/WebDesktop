@@ -1,0 +1,27 @@
+/* NOTEPAD WINDOW */
+.notepad-window {
+  top: 80px;
+  left: 320px;
+  width: 420px;
+  height: 360px;
+}
+
+.notepad-body {
+  height: calc(100% - 36px);
+  background: #fff;
+}
+
+.notepad-textarea {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: none;
+  padding: 12px;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: "Consolas", "Segoe UI", monospace;
+  outline: none;
+  background: #fff;
+  color: #1a1a1a;
+}

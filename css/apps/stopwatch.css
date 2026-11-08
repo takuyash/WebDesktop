@@ -1,0 +1,121 @@
+/* =========================
+   ストップウォッチ
+========================= */
+.stopwatch-window {
+  top: 140px;
+  left: 500px;
+  width: 380px;
+  height: 480px;
+}
+
+.stopwatch-body {
+  height: calc(100% - 36px);
+  box-sizing: border-box;
+  background: #f4f4f4;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.stopwatch-display {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 24px 12px;
+  text-align: center;
+  font-family: "Consolas", "Segoe UI", monospace;
+  font-size: 38px;
+  font-weight: bold;
+  color: #0078d4;
+  letter-spacing: 1px;
+}
+
+.stopwatch-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.stopwatch-btn {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.stopwatch-btn:disabled {
+  background: #f0f0f0;
+  color: #aaa;
+  cursor: not-allowed;
+  border-color: #ddd;
+}
+
+.stopwatch-btn-lap:hover:not(:disabled),
+.stopwatch-btn-reset:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.stopwatch-btn-start {
+  border-color: #0078d4;
+  background: #0078d4;
+  color: #fff;
+}
+
+.stopwatch-btn-start:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.stopwatch-btn-start.running {
+  border-color: #c0392b;
+  background: #c0392b;
+}
+
+.stopwatch-laps {
+  flex: 1;
+  min-height: 100px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.stopwatch-laps-empty {
+  font-size: 13px;
+  color: #999;
+  text-align: center;
+  padding: 20px 12px;
+}
+
+.stopwatch-laps.has-laps .stopwatch-laps-empty {
+  display: none;
+}
+
+.stopwatch-lap-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 1fr;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: "Consolas", "Segoe UI", monospace;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+}
+
+.stopwatch-lap-row:last-child {
+  border-bottom: none;
+}
+
+.stopwatch-lap-number {
+  color: #666;
+}
+
+.stopwatch-lap-split,
+.stopwatch-lap-total {
+  text-align: right;
+}

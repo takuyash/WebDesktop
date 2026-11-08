@@ -1,0 +1,76 @@
+/* TERMINAL WINDOW */
+.terminal-window {
+  top: 140px;
+  left: 560px;
+  width: 520px;
+  height: 360px;
+}
+
+.terminal-body {
+  height: calc(100% - 36px);
+  background: #0c0c0c;
+  display: flex;
+  flex-direction: column;
+  font-family: "Consolas", "Courier New", monospace;
+}
+
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  color: #cccccc;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-line {
+  margin-bottom: 4px;
+}
+
+.terminal-welcome {
+  color: #4ec9b0;
+}
+
+.terminal-hint {
+  color: #808080;
+  margin-bottom: 8px;
+}
+
+.terminal-input-echo {
+  color: #cccccc;
+}
+
+.terminal-success {
+  color: #6aad6a;
+}
+
+.terminal-error {
+  color: #f48771;
+}
+
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid #333;
+  background: #0c0c0c;
+}
+
+.terminal-prompt {
+  color: #cccccc;
+  font-size: 13px;
+  margin-right: 6px;
+  user-select: none;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #cccccc;
+  font-size: 13px;
+  font-family: "Consolas", "Courier New", monospace;
+}

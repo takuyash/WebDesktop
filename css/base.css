@@ -1,0 +1,368 @@
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: url("../assets/bg.png") center/cover;
+  overflow: hidden;
+}
+
+/* DESKTOP */
+.desktop {
+  height: 100vh;
+  position: relative;
+}
+
+/* TASKBAR */
+.taskbar {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 42px;
+  background: rgba(20,20,20,0.85);
+  display: flex;
+  align-items: center;
+  color: white;
+  z-index: 10000;
+}
+
+.start {
+  width: 50px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.task-title {
+  flex: 1;
+}
+
+.task-apps {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+.task-app-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 0;
+  width: 40px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.task-app-icon {
+  line-height: 1;
+  display: block;
+}
+
+.task-app-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.task-app-btn.active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.task-app-btn.minimized {
+  opacity: 0.65;
+}
+
+.lang {
+  width: 50px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.taskbar-icon-btn {
+  width: 36px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.taskbar-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.taskbar-icon-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* START MENU */
+.start-menu {
+  position: absolute;
+  bottom: 42px;
+  left: 0;
+  width: 220px;
+  max-height: calc(100vh - 50px);
+  overflow-y: auto;
+  background: rgba(30,30,30,0.95);
+  display: none;
+  color: white;
+}
+
+.start-menu div {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.start-menu div:hover {
+  background: #333;
+}
+
+/* WINDOW */
+.window {
+  position: absolute;
+  top: 60px;
+  left: 80px;
+  width: 900px;
+  height: 500px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+.window-resizable .resize-handle {
+  position: absolute;
+  z-index: 20;
+}
+
+.window-resizable .resize-n {
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 6px;
+  cursor: n-resize;
+}
+
+.window-resizable .resize-s {
+  bottom: 0;
+  left: 10px;
+  right: 10px;
+  height: 6px;
+  cursor: s-resize;
+}
+
+.window-resizable .resize-e {
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 6px;
+  cursor: e-resize;
+}
+
+.window-resizable .resize-w {
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 6px;
+  cursor: w-resize;
+}
+
+.window-resizable .resize-ne {
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: ne-resize;
+}
+
+.window-resizable .resize-nw {
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nw-resize;
+}
+
+.window-resizable .resize-se {
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+}
+
+.window-resizable .resize-sw {
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  cursor: sw-resize;
+}
+
+.window.window-maximized {
+  border-radius: 0;
+}
+
+.window.window-maximized .resize-handle {
+  display: none;
+}
+
+.window-maximized .win-maximize {
+  font-size: 14px;
+}
+
+/* TITLE BAR */
+.titlebar {
+  height: 36px;
+  background: #0078d4;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 0 10px;
+  cursor: move;
+}
+
+.titlebar > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar .controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 36px;
+}
+
+.titlebar .controls button,
+.titlebar .controls .win-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  width: 46px;
+  height: 36px;
+  line-height: 1;
+  padding: 0;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.titlebar .controls .win-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.titlebar .controls .win-close:hover {
+  background: #e81123;
+  color: white;
+}
+
+.titlebar .controls .win-maximize {
+  font-size: 11px;
+}
+
+/* デスクトップアイコン */
+.desktop-icons {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--icon-rows, 6), 88px);
+  grid-auto-columns: 88px;
+  gap: 12px;
+}
+
+.icon {
+  width: 88px;
+  min-height: 88px;
+  padding: 8px 4px;
+  box-sizing: border-box;
+  color: white;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  border-radius: 8px;
+}
+
+.icon-image {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.icon-label {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  word-break: break-word;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  max-width: 80px;
+}
+
+.icon:hover {
+  background: rgba(255,255,255,0.15);
+}
+/* 時計（右下） */
+.clock {
+  width: 140px;
+  text-align: right;
+  padding-right: 10px;
+  font-size: 12px;
+  color: white;
+  user-select: none;
+}
+
+/* =========================
+   カレンダーUI
+========================= */
+.calendar {
+  position: absolute;
+  bottom: 50px;
+  right: 10px;
+  width: 260px;
+  background: #1f1f1f;
+  color: white;
+  border-radius: 10px;
+  padding: 10px;
+  display: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  font-size: 12px;
+  z-index: 9999;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.calendar-grid div {
+  padding: 4px 0;
+  border-radius: 4px;
+}
+
+.calendar-grid .today {
+  background: #0078d4;
+}
